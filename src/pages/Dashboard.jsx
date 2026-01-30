@@ -5,7 +5,7 @@ import { supabase } from '../supabaseClient'
 import { 
   FiHome, FiBell, FiFileText, FiBriefcase, 
   FiLogOut, FiMenu, FiX, FiMessageSquare, FiSend, 
-  FiClock, FiFolder, FiChevronRight, FiCheckCircle, FiDownload, FiEdit3, FiAlertCircle
+  FiClock, FiChevronRight, FiCheckCircle, FiDownload, FiEdit3, FiAlertCircle
 } from 'react-icons/fi'
 
 export default function Dashboard() {
@@ -16,7 +16,7 @@ export default function Dashboard() {
   const [activeMenu, setActiveMenu] = useState('Dashboard')
   const [user, setUser] = useState({ name: 'Loading...', role: '...', email: '', avatar: null })
 
-  // --- STATE TUGAS AKHIR (6 TAHAP) ---
+  // --- STATE TUGAS AKHIR ---
   const [taStages, setTaStages] = useState([
     { id: 1, title: 'Pengajuan Judul TA', status: 'done', date: '20 Jan 2026' },
     { id: 2, title: 'Seminar Proposal', status: 'open', date: '-' },
@@ -26,21 +26,20 @@ export default function Dashboard() {
     { id: 6, title: 'Yudisium', status: 'locked', date: '-' },
   ])
 
-  // --- STATE MAGANG (4 TAHAP) ---
+  // --- STATE MAGANG ---
   const [magangStages, setMagangStages] = useState([
     { id: 1, title: 'Pengajuan Magang', status: 'done', date: '15 Des 2025' },
-    { id: 2, title: 'Pelaksanaan Magang', status: 'open', date: '-' }, // Sedang berlangsung
+    { id: 2, title: 'Pelaksanaan Magang', status: 'open', date: '-' },
     { id: 3, title: 'Diseminasi Magang', status: 'locked', date: '-' },
     { id: 4, title: 'Revisi Diseminasi', status: 'locked', date: '-' },
   ])
 
-  // --- LOGIKA PROGRESS DINAMIS (TA) ---
+  // --- LOGIKA PROGRESS DINAMIS ---
   const taCompleted = taStages.filter(s => s.status === 'done').length
   const taPercent = Math.round((taCompleted / taStages.length) * 100)
   const taActive = taStages.find(s => s.status === 'open')
   const taLabel = taPercent === 100 ? 'Selesai' : taActive ? `Tahap: ${taActive.title}` : 'Belum Dimulai'
 
-  // --- LOGIKA PROGRESS DINAMIS (MAGANG) ---
   const magangCompleted = magangStages.filter(s => s.status === 'done').length
   const magangPercent = Math.round((magangCompleted / magangStages.length) * 100)
   const magangActive = magangStages.find(s => s.status === 'open')
@@ -51,11 +50,12 @@ export default function Dashboard() {
   const [loadingAnnounce, setLoadingAnnounce] = useState(false)
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null)
 
-  // --- STATE CHATBOT ---
+  // --- STATE CHATBOT (AI GEMINI) ---
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [chatInput, setChatInput] = useState('')
+  const [isTyping, setIsTyping] = useState(false) 
   const [chatHistory, setChatHistory] = useState([
-    { sender: 'bot', text: 'Halo! Saya asisten akademik AI. Ada yang bisa saya bantu?' }
+    { sender: 'bot', text: 'Halo! Saya asisten akademik (AI). Silakan tanya progres TA, Magang, atau Pengumuman terbaru!' }
   ])
   const chatEndRef = useRef(null)
 
@@ -75,29 +75,28 @@ export default function Dashboard() {
     }
   }, [navigate])
 
-  // --- 2. FETCH PENGUMUMAN ---
+  // --- 2. FETCH PENGUMUMAN (GLOBAL) ---
   useEffect(() => {
-    if (activeMenu === 'Pengumuman') {
-      const fetchData = async () => {
-        setLoadingAnnounce(true)
-        try {
-          const { data, error } = await supabase
-            .from('Pengumuman')
-            .select('*')
-            .order('created_at', { ascending: false })
-          if (error) throw error
-          setAnnouncements(data || [])
-        } catch (err) {
-          console.error("Gagal ambil pengumuman:", err.message)
-        } finally {
-          setLoadingAnnounce(false)
-        }
+    const fetchGlobalData = async () => {
+      setLoadingAnnounce(true)
+      try {
+        const { data, error } = await supabase
+          .from('Pengumuman')
+          .select('*')
+          .order('created_at', { ascending: false })
+        
+        if (error) throw error
+        setAnnouncements(data || [])
+      } catch (err) {
+        console.error("Gagal load pengumuman:", err.message)
+      } finally {
+        setLoadingAnnounce(false)
       }
-      fetchData()
     }
-  }, [activeMenu])
+    fetchGlobalData()
+  }, [])
 
-  // --- 3. SIMULASI UPDATE STATUS ---
+  // --- 3. FUNGSI STATUS ---
   const handleUpdateStatusTA = (id) => {
     const updated = taStages.map(s => {
       if (s.id === id) return { ...s, status: 'done', date: new Date().toLocaleDateString('id-ID') }
@@ -106,7 +105,6 @@ export default function Dashboard() {
     })
     setTaStages(updated)
   }
-
   const handleUpdateStatusMagang = (id) => {
     const updated = magangStages.map(s => {
       if (s.id === id) return { ...s, status: 'done', date: new Date().toLocaleDateString('id-ID') }
@@ -116,21 +114,98 @@ export default function Dashboard() {
     setMagangStages(updated)
   }
 
-  // --- 4. LOGIC CHATBOT ---
-  const handleSendChat = (e) => {
+  // --- 4. LOGIC CHATBOT AI (MODEL: GEMINI 2.5 FLASH) ---
+  const handleSendChat = async (e) => {
     e.preventDefault()
     if (!chatInput.trim()) return
-    const newChat = [...chatHistory, { sender: 'user', text: chatInput }]
-    setChatHistory(newChat)
+
+    const userMsg = chatInput
+    setChatHistory(prev => [...prev, { sender: 'user', text: userMsg }])
     setChatInput('')
-    setTimeout(() => {
-      setChatHistory(prev => [...prev, { sender: 'bot', text: 'Maaf, fitur koneksi AI Gemini sedang dalam tahap integrasi final.' }])
-    }, 1000)
+    setIsTyping(true)
+
+    // A. JAWABAN LOKAL (Instant)
+    const lowerMsg = userMsg.toLowerCase()
+    let localAnswer = null
+
+    if (lowerMsg.includes('progress ta') || lowerMsg.includes('status ta')) {
+        localAnswer = `Progress Tugas Akhir kamu saat ini ${taPercent}% pada tahap: "${taLabel}".`
+    } else if (lowerMsg.includes('progress magang') || lowerMsg.includes('status magang')) {
+        localAnswer = `Progress Magang kamu saat ini ${magangPercent}% pada tahap: "${magangLabel}".`
+    }
+
+    if (localAnswer) {
+        setTimeout(() => {
+            setChatHistory(prev => [...prev, { sender: 'bot', text: localAnswer }])
+            setIsTyping(false)
+        }, 800)
+        return
+    }
+
+    // B. JAWABAN API (GEMINI 2.5 FLASH)
+    try {
+      const rawKey = import.meta.env.VITE_GEMINI_API_KEY
+      const apiKey = rawKey ? rawKey.trim() : ""
+      
+      if (!apiKey) throw new Error("API Key tidak ditemukan. Cek .env!")
+
+      const contextData = announcements.length > 0
+        ? announcements.map((a, i) => `[${i+1}] ${a.Judul} (Isi: ${a.isi_pengumuman})`).join('\n')
+        : "Tidak ada pengumuman saat ini."
+
+      const prompt = `
+        Kamu adalah asisten akademik Politeknik Negeri Madiun.
+        
+        DATA PENGUMUMAN KAMPUS:
+        ${contextData}
+
+        DATA MAHASISWA:
+        - TA: ${taPercent}% (${taLabel})
+        - Magang: ${magangPercent}% (${magangLabel})
+
+        PERTANYAAN: "${userMsg}"
+
+        INSTRUKSI:
+        - Jawab ramah dan singkat.
+        - Jika ditanya pengumuman, rangkum dari data di atas.
+      `
+
+      // --- PERBAIKAN UTAMA: MENGGUNAKAN 'gemini-2.5-flash' ---
+      // Model ini ada di daftar JSON Anda (urutan pertama)
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      })
+
+      const data = await response.json()
+      
+      if (data.error) {
+        console.error("AI Error:", data.error)
+        throw new Error(data.error.message)
+      }
+
+      if (!data.candidates || data.candidates.length === 0) {
+         throw new Error("Bot tidak memberikan jawaban (Safety Filter).")
+      }
+
+      const aiResponse = data.candidates[0].content.parts[0].text
+      setChatHistory(prev => [...prev, { sender: 'bot', text: aiResponse }])
+
+    } catch (error) {
+      console.error("Chatbot Error:", error)
+      setChatHistory(prev => [...prev, { 
+        sender: 'bot', 
+        text: `Error: ${error.message}` 
+      }])
+    } finally {
+      setIsTyping(false)
+    }
   }
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [chatHistory, isChatOpen])
+  }, [chatHistory, isChatOpen, isTyping])
 
   // --- 5. LOGOUT ---
   const handleLogout = () => {
@@ -163,20 +238,20 @@ export default function Dashboard() {
   const AnnouncementModal = ({ item, onClose }) => {
     if (!item) return null
     return (
-      <div className="fixed inset-0 flex items-center justify-center p-4" style={styles.modalOverlay}>
-        <div className="absolute inset-0 bg-gray-900 bg-opacity-80 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
-        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-pop-in">
-          <div className="p-6 md:p-8 flex justify-between items-start text-white flex-shrink-0" style={styles.gradientCard}>
-            <div className="pr-6">
-              <span className="bg-white/20 border border-white/20 text-xs font-bold px-3 py-1 rounded-full uppercase mb-4 inline-block tracking-wider">{item.kategori || 'INFORMASI'}</span>
-              <h2 className="text-2xl md:text-3xl font-bold leading-tight mb-2">{item.Judul}</h2>
+      <div className="fixed inset-0 flex items-center justify-center p-0 md:p-4" style={styles.modalOverlay}>
+        <div className="absolute inset-0 bg-gray-900 bg-opacity-90 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
+        <div className="relative bg-white w-full h-full md:h-auto md:max-h-[90vh] md:max-w-3xl md:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-pop-in">
+          <div className="p-6 flex justify-between items-start text-white flex-shrink-0" style={styles.gradientCard}>
+            <div className="pr-4">
+              <span className="bg-white/20 border border-white/20 text-xs font-bold px-3 py-1 rounded-full uppercase mb-3 inline-block tracking-wider">{item.kategori || 'INFORMASI'}</span>
+              <h2 className="text-xl md:text-2xl font-bold leading-tight mb-2">{item.Judul}</h2>
               <div className="flex items-center gap-2 text-blue-100 text-sm"><FiClock /> <span>{formatDate(item.created_at)}</span></div>
             </div>
-            <button onClick={onClose} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition focus:outline-none"><FiX size={24} /></button>
+            <button onClick={onClose} className="bg-white/10 hover:bg-white/20 p-3 rounded-full transition focus:outline-none"><FiX size={24} /></button>
           </div>
-          <div className="p-8 overflow-y-auto text-gray-700 leading-relaxed text-lg whitespace-pre-wrap">{item.isi_pengumuman}</div>
-          <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end flex-shrink-0">
-            <button onClick={onClose} className="px-8 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-xl transition">Tutup</button>
+          <div className="flex-1 p-6 overflow-y-auto text-gray-700 leading-relaxed text-base md:text-lg whitespace-pre-wrap">{item.isi_pengumuman}</div>
+          <div className="p-4 md:p-6 border-t border-gray-100 bg-gray-50 flex justify-end flex-shrink-0 safe-area-bottom">
+            <button onClick={onClose} className="w-full md:w-auto px-8 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-xl transition">Tutup</button>
           </div>
         </div>
       </div>
@@ -231,11 +306,10 @@ export default function Dashboard() {
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="max-w-6xl mx-auto pb-24">
             
-            {/* --- MENU 1: DASHBOARD --- */}
+            {/* DASHBOARD */}
             {activeMenu === 'Dashboard' && (
               <div className="space-y-8 animate-pop-in">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Card TA Shortcut */}
                   <div style={{background: 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)'}} className="relative rounded-2xl p-8 h-64 flex flex-col justify-center overflow-hidden text-white shadow-lg hover:scale-[1.01] transition-transform duration-300">
                     <div className="absolute right-0 top-0 w-40 h-40 bg-white opacity-10 rounded-full transform translate-x-10 -translate-y-10"></div>
                     <div className="relative z-10">
@@ -246,7 +320,6 @@ export default function Dashboard() {
                       <button onClick={() => setActiveMenu('TugasAkhir')} className="mt-6 bg-white text-blue-600 px-6 py-3 rounded-xl font-bold text-sm shadow-md hover:bg-gray-50 transition-colors">Lihat Detail</button>
                     </div>
                   </div>
-                  {/* Card Magang Shortcut */}
                   <div style={{background: 'linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%)'}} className="relative rounded-2xl p-8 h-64 flex flex-col justify-center overflow-hidden text-white shadow-lg hover:scale-[1.01] transition-transform duration-300">
                     <div className="absolute right-0 bottom-0 w-40 h-40 bg-white opacity-10 rounded-full transform translate-x-10 translate-y-10"></div>
                     <div className="relative z-10">
@@ -259,11 +332,9 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* PROGRESS BAR DINAMIS */}
                 <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
                   <h3 className="text-lg font-bold text-gray-800 mb-8">Progress Akademik</h3>
                   <div className="space-y-8">
-                    {/* TA Progress */}
                     <div>
                       <div className="flex justify-between items-center mb-3">
                         <span className="font-semibold text-gray-700">Tugas Akhir</span>
@@ -272,11 +343,10 @@ export default function Dashboard() {
                       <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden"><div className="h-full rounded-full" style={styles.progressBarTA}></div></div>
                       <p className="text-xs text-gray-400 mt-2 text-right">{taPercent}% Selesai</p>
                     </div>
-                    {/* Magang Progress */}
                     <div>
                       <div className="flex justify-between items-center mb-3">
                         <span className="font-semibold text-gray-700">Magang</span>
-                        <span className={`px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${magangPercent === 100 ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{magangLabel}</span>
+                        <span className={`px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${magangPercent === 100 ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>{magangLabel}</span>
                       </div>
                       <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden"><div className="h-full rounded-full" style={styles.progressBarMagang}></div></div>
                       <p className="text-xs text-gray-400 mt-2 text-right">{magangPercent}% Selesai</p>
@@ -286,7 +356,7 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* --- MENU 2: PENGUMUMAN --- */}
+            {/* PENGUMUMAN */}
             {activeMenu === 'Pengumuman' && (
               <div className="animate-pop-in">
                 {loadingAnnounce ? (
@@ -316,7 +386,7 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* --- MENU 3: TUGAS AKHIR --- */}
+            {/* TUGAS AKHIR */}
             {activeMenu === 'TugasAkhir' && (
               <div className="space-y-6 animate-pop-in">
                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-6 mb-8">
@@ -350,7 +420,7 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* --- MENU 4: MAGANG (NEW) --- */}
+            {/* MAGANG */}
             {activeMenu === 'Magang' && (
               <div className="space-y-6 animate-pop-in">
                 <div className="bg-purple-50 border border-purple-100 rounded-xl p-6 mb-8">
@@ -405,6 +475,11 @@ export default function Dashboard() {
                   <div className="p-3 text-sm max-w-[85%] shadow-sm leading-relaxed" style={msg.sender === 'user' ? styles.chatUser : styles.chatBot}>{msg.text}</div>
                 </div>
               ))}
+              {isTyping && (
+                <div className="flex justify-start animate-pop-in">
+                  <div className="p-3 bg-gray-100 rounded-r-xl rounded-bl-xl text-xs text-gray-500 italic">Sedang mengetik...</div>
+                </div>
+              )}
               <div ref={chatEndRef}></div>
             </div>
             <form onSubmit={handleSendChat} className="p-3 bg-white border-t border-gray-100 flex gap-2">
