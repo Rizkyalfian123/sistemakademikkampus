@@ -1,74 +1,65 @@
-import React, { useState } from 'react';
-import { FiFileText, FiBriefcase, FiBell, FiClock, FiChevronRight } from 'react-icons/fi';
-
-// --- IMPORTS COMPONENTS ---
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
+// Import Icon
+import { 
+  FiHome, FiBell, FiFileText, FiBriefcase, 
+  FiLogOut, FiMenu, FiX, FiMessageSquare, FiSend, 
+  FiClock, FiChevronRight, FiCheckCircle, FiDownload, FiEdit3, FiAlertCircle, FiKey
+} from 'react-icons/fi';
+// Import PDF Generator
+import { generateAndDownloadPDF } from '../utils/pdfGenerator';
+// Import Components
 import { Sidebar } from '../components/layout/Sidebar';
 import { Header } from '../components/layout/Header';
 import { StageCard } from '../components/cards/StageCard';
 import { ChatWidget } from '../components/shared/ChatWidget';
 import { AnnouncementModal } from '../components/modals/AnnouncementModal';
 import { FormModal } from '../components/modals/FormModal';
-
-// --- IMPORTS LOGIC & UTILS ---
 import { useDashboardLogic } from '../hooks/useDashboardLogic';
-import { generateAndDownloadPDF } from '../utils/pdfGenerator';
-// import { supabase } from '../supabaseClient'; 
 
 export default function Dashboard() {
-  // 1. Hook Logika Utama
+  const navigate = useNavigate();
   const logic = useDashboardLogic();
 
-  // 2. State Lokal
-  const [selectedAnnounce, setSelectedAnnounce] = useState(null);
+  // --- STATE ---
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [currentStageId, setCurrentStageId] = useState(null);
   
-  // STATE DATABASE LOKAL (Simulasi)
+  // STATE MOCK DATABASE (Menyimpan data input form sementara)
   const [localDB, setLocalDB] = useState({}); 
 
-  // 3. Styles & Helpers
-  const formatDate = (date) => new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-  
+  // --- STYLES ---
   const styles = {
+    gradientCard: { background: 'linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)' },
     glass: { backgroundColor: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(5px)' },
-    progressBarTA: { 
-      background: 'linear-gradient(90deg, #10b981 0%, #34d399 100%)', 
-      width: `${logic.taProgress?.percent || 0}%`, 
-      transition: 'width 1s ease-in-out' 
-    },
-    progressBarMagang: { 
-      background: 'linear-gradient(90deg, #3b82f6 0%, #6366f1 100%)', 
-      width: `${logic.magangProgress?.percent || 0}%`, 
-      transition: 'width 1s ease-in-out' 
-    }
+    progressBarTA: { background: 'linear-gradient(90deg, #10b981 0%, #34d399 100%)', width: `${logic.taProgress?.percent || 0}%`, transition: 'width 1s ease-in-out' },
+    progressBarMagang: { background: 'linear-gradient(90deg, #3b82f6 0%, #6366f1 100%)', width: `${logic.magangProgress?.percent || 0}%`, transition: 'width 1s ease-in-out' }
   };
+
+  const formatDate = (date) => new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
   // --- HANDLERS ---
 
-  // A. Buka Form
+  // 1. BUKA FORM
   const handleOpenForm = (stageId) => {
     setCurrentStageId(stageId);
     setIsFormOpen(true);
   };
 
-  // B. Simpan Data (CRUD)
+  // 2. SIMPAN DATA
   const handleSaveToDB = async (dataInput) => {
     try {
       console.log("Menyimpan Data:", dataInput);
-      
-      // Simpan ke State Lokal (Mock DB)
       setLocalDB(prev => ({
         ...prev,
         [currentStageId]: dataInput 
       }));
 
-      /* Jika pakai Supabase Real:
-      const { error } = await supabase.from('submission_ta').upsert({ ... });
-      if (error) throw error; 
-      */
-
+      // Update status visual
       logic.handleUpdateStatus(currentStageId, 'TA'); 
-      alert("Data berhasil disimpan! Siap untuk download PDF.");
+      alert("Data berhasil disimpan! Tombol Download PDF sekarang bisa digunakan.");
       setIsFormOpen(false);
 
     } catch (err) {
@@ -76,18 +67,41 @@ export default function Dashboard() {
     }
   };
 
-  // C. Download PDF (DINAMIS PATH FIX)
+  // --- 3. FUNGSI KHUSUS URL PDF (FIX GITHUB PAGES) ---
+  const getPdfTemplateUrl = () => {
+    // ============================================================
+    // ⚠️ GANTI 'nama-repo-kamu' DI BAWAH INI SESUAI GITHUB KAMU! ⚠️
+    // Contoh: jika linknya rizky.github.io/siakad-app/, tulis 'siakad-app'
+    // Jika di localhost, biarkan saja, kode ini otomatis mendeteksi.
+    const REPO_NAME = 'sistemakademikkampus'; 
+    // ============================================================
+
+    const isGithubPages = window.location.hostname.includes('github.io');
+    const filename = 'templates/berita_acara.pdf';
+
+    if (isGithubPages) {
+      // Jika di GitHub, tambahkan nama repo di depan
+      // Hasil: /nama-repo/templates/berita_acara.pdf
+      return `/${REPO_NAME}/${filename}`;
+    } else {
+      // Jika di Localhost
+      // Hasil: /templates/berita_acara.pdf
+      return `/${filename}`;
+    }
+  };
+
+  // 4. DOWNLOAD PDF
   const handleDownloadPDF = async (stageId, stageTitle) => {
     try {
-      // 1. Ambil Data
+      // Ambil data dari state lokal
       const savedData = localDB[stageId];
 
       if (!savedData) {
-        alert("Data belum ditemukan! Silakan isi form dan simpan terlebih dahulu.");
+        alert("Data belum ditemukan! Silakan klik 'Isi Form' dan 'Simpan' terlebih dahulu.");
         return;
       }
 
-      // 2. Siapkan Data PDF
+      // Mapping data
       const pdfData = {
          nama_mahasiswa: savedData.nama_mahasiswa,
          nim: savedData.nim, 
@@ -96,17 +110,9 @@ export default function Dashboard() {
          ruang_waktu: savedData.ruang_waktu
       };
 
-      // 3. PATH DINAMIS (KUNCI PERBAIKAN DI SINI)
-      // import.meta.env.BASE_URL akan otomatis menyesuaikan:
-      // Localhost -> '/'
-      // GitHub -> '/nama-repo-kamu/'
-      const baseUrl = import.meta.env.BASE_URL;
-      
-      // Gabungkan Base URL dengan path file template
-      // .replace('//', '/') untuk mencegah double slash jika baseUrl sudah punya slash
-      const templatePath = `${baseUrl}templates/berita_acara.pdf`.replace('//', '/');
-
-      console.log("Mengambil template dari:", templatePath); // Debugging Path
+      // Ambil URL Template yang sudah diperbaiki
+      const templatePath = getPdfTemplateUrl();
+      console.log("Mencoba download template dari:", templatePath);
 
       await generateAndDownloadPDF(
           templatePath, 
@@ -116,7 +122,7 @@ export default function Dashboard() {
 
     } catch (err) {
       console.error(err);
-      alert("Gagal mendownload PDF. Pastikan file template ada di folder public/templates/");
+      alert(`Gagal mendownload PDF. \nSystem mencoba mengambil dari: ${getPdfTemplateUrl()} \nPastikan file ada di folder 'public/templates/'.`);
     }
   };
 
@@ -200,10 +206,10 @@ export default function Dashboard() {
                                       <span className="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border border-blue-100">{item.kategori || 'Umum'}</span>
                                       <span className="text-gray-400 text-xs flex items-center gap-1"><FiClock size={12} /> {formatDate(item.created_at)}</span>
                                   </div>
-                                  <h3 onClick={() => setSelectedAnnounce(item)} className="text-lg font-bold text-gray-800 leading-snug cursor-pointer group-hover:text-blue-600 transition-colors mb-3">{item.Judul}</h3>
+                                  <h3 onClick={() => setSelectedAnnouncement(item)} className="text-lg font-bold text-gray-800 leading-snug cursor-pointer group-hover:text-blue-600 transition-colors mb-3">{item.Judul}</h3>
                                   <p className="text-gray-500 text-sm mb-6 flex-1 leading-relaxed" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.isi_pengumuman}</p>
                                   <div className="mt-auto border-t border-gray-100 pt-4 flex justify-end">
-                                      <button onClick={() => setSelectedAnnounce(item)} className="text-sm font-bold text-blue-600 flex items-center gap-1 hover:gap-2 transition-all focus:outline-none">Baca Detail <FiChevronRight /></button>
+                                      <button onClick={() => setSelectedAnnouncement(item)} className="text-sm font-bold text-blue-600 flex items-center gap-1 hover:gap-2 transition-all focus:outline-none">Baca Detail <FiChevronRight /></button>
                                   </div>
                               </div>
                            </div>
@@ -262,7 +268,7 @@ export default function Dashboard() {
       </div>
 
       <ChatWidget announcements={logic.announcements} taPercent={logic.taProgress?.percent} magangPercent={logic.magangProgress?.percent} />
-      {selectedAnnounce && <AnnouncementModal item={selectedAnnounce} onClose={() => setSelectedAnnounce(null)} />}
+      {selectedAnnouncement && <AnnouncementModal item={selectedAnnouncement} onClose={() => setSelectedAnnouncement(null)} />}
       
       {/* FORM MODAL */}
       <FormModal 
