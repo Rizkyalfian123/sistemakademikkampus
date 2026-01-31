@@ -5,7 +5,7 @@ import { supabase } from '../supabaseClient'
 import { 
   FiHome, FiBell, FiFileText, FiBriefcase, 
   FiLogOut, FiMenu, FiX, FiMessageSquare, FiSend, 
-  FiClock, FiChevronRight, FiCheckCircle, FiDownload, FiEdit3, FiAlertCircle
+  FiClock, FiChevronRight, FiCheckCircle, FiDownload, FiEdit3, FiAlertCircle, FiKey
 } from 'react-icons/fi'
 
 export default function Dashboard() {
@@ -34,7 +34,7 @@ export default function Dashboard() {
     { id: 4, title: 'Revisi Diseminasi', status: 'locked', date: '-' },
   ])
 
-  // --- LOGIKA PROGRESS DINAMIS ---
+  // --- LOGIKA PROGRESS ---
   const taCompleted = taStages.filter(s => s.status === 'done').length
   const taPercent = Math.round((taCompleted / taStages.length) * 100)
   const taActive = taStages.find(s => s.status === 'open')
@@ -50,13 +50,17 @@ export default function Dashboard() {
   const [loadingAnnounce, setLoadingAnnounce] = useState(false)
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null)
 
-  // --- STATE CHATBOT (AI GEMINI) ---
+  // --- STATE CHATBOT & API KEY ---
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [chatInput, setChatInput] = useState('')
   const [isTyping, setIsTyping] = useState(false) 
   const [chatHistory, setChatHistory] = useState([
-    { sender: 'bot', text: 'Halo! Saya asisten akademik (AI). Silakan tanya progres TA, Magang, atau Pengumuman terbaru!' }
+    { sender: 'bot', text: 'Halo! Saya asisten akademik (AI) dengan model Gemini 2.5 Flash. Ada yang bisa saya bantu?' }
   ])
+  
+  // STATE API KEY MANUAL
+  const [userApiKey, setUserApiKey] = useState('')
+  const [showKeyModal, setShowKeyModal] = useState(false)
   const chatEndRef = useRef(null)
 
   // --- 1. PROTEKSI HALAMAN ---
@@ -75,7 +79,15 @@ export default function Dashboard() {
     }
   }, [navigate])
 
-  // --- 2. FETCH PENGUMUMAN (GLOBAL) ---
+  // --- 2. LOAD API KEY DARI LOCAL STORAGE ---
+  useEffect(() => {
+    const storedKey = localStorage.getItem('gemini_api_key')
+    if (storedKey) {
+      setUserApiKey(storedKey)
+    }
+  }, [])
+
+  // --- 3. FETCH PENGUMUMAN ---
   useEffect(() => {
     const fetchGlobalData = async () => {
       setLoadingAnnounce(true)
@@ -84,7 +96,6 @@ export default function Dashboard() {
           .from('Pengumuman')
           .select('*')
           .order('created_at', { ascending: false })
-        
         if (error) throw error
         setAnnouncements(data || [])
       } catch (err) {
@@ -96,7 +107,7 @@ export default function Dashboard() {
     fetchGlobalData()
   }, [])
 
-  // --- 3. FUNGSI STATUS ---
+  // --- 4. FUNGSI UPDATE STATUS ---
   const handleUpdateStatusTA = (id) => {
     const updated = taStages.map(s => {
       if (s.id === id) return { ...s, status: 'done', date: new Date().toLocaleDateString('id-ID') }
@@ -114,7 +125,23 @@ export default function Dashboard() {
     setMagangStages(updated)
   }
 
-  // --- 4. LOGIC CHATBOT AI (MODEL: GEMINI 2.5 FLASH) ---
+  // --- 5. LOGIC SIMPAN API KEY ---
+  const handleSaveApiKey = (e) => {
+    e.preventDefault()
+    const inputKey = e.target.apiKey.value.trim()
+    if (!inputKey) return alert("API Key tidak boleh kosong!")
+    
+    setUserApiKey(inputKey)
+    localStorage.setItem('gemini_api_key', inputKey)
+    setShowKeyModal(false)
+    
+    setChatHistory(prev => [...prev, { 
+      sender: 'bot', 
+      text: 'API Key tersimpan! Sekarang saya siap digunakan dengan model Gemini 2.5 Flash.' 
+    }])
+  }
+
+  // --- 6. LOGIC CHATBOT AI (GEMINI 2.5 FLASH) ---
   const handleSendChat = async (e) => {
     e.preventDefault()
     if (!chatInput.trim()) return
@@ -124,10 +151,9 @@ export default function Dashboard() {
     setChatInput('')
     setIsTyping(true)
 
-    // A. JAWABAN LOKAL (Instant)
+    // A. CEK JAWABAN LOKAL
     const lowerMsg = userMsg.toLowerCase()
     let localAnswer = null
-
     if (lowerMsg.includes('progress ta') || lowerMsg.includes('status ta')) {
         localAnswer = `Progress Tugas Akhir kamu saat ini ${taPercent}% pada tahap: "${taLabel}".`
     } else if (lowerMsg.includes('progress magang') || lowerMsg.includes('status magang')) {
@@ -142,13 +168,16 @@ export default function Dashboard() {
         return
     }
 
-    // B. JAWABAN API (GEMINI 2.5 FLASH)
-    try {
-      const rawKey = import.meta.env.VITE_GEMINI_API_KEY
-      const apiKey = rawKey ? rawKey.trim() : ""
-      
-      if (!apiKey) throw new Error("API Key tidak ditemukan. Cek .env!")
+    // B. CEK API KEY
+    if (!userApiKey) {
+        setIsTyping(false)
+        setShowKeyModal(true)
+        setChatHistory(prev => [...prev, { sender: 'bot', text: 'Silakan masukkan Google Gemini API Key Anda terlebih dahulu.' }])
+        return
+    }
 
+    // C. KIRIM KE GEMINI 2.5 FLASH
+    try {
       const contextData = announcements.length > 0
         ? announcements.map((a, i) => `[${i+1}] ${a.Judul} (Isi: ${a.isi_pengumuman})`).join('\n')
         : "Tidak ada pengumuman saat ini."
@@ -159,20 +188,18 @@ export default function Dashboard() {
         DATA PENGUMUMAN KAMPUS:
         ${contextData}
 
-        DATA MAHASISWA:
+        DATA PROGRESS MAHASISWA:
         - TA: ${taPercent}% (${taLabel})
         - Magang: ${magangPercent}% (${magangLabel})
 
         PERTANYAAN: "${userMsg}"
 
         INSTRUKSI:
-        - Jawab ramah dan singkat.
-        - Jika ditanya pengumuman, rangkum dari data di atas.
+        - Jawab ramah, singkat, dan jelas.
       `
 
-      // --- PERBAIKAN UTAMA: MENGGUNAKAN 'gemini-2.5-flash' ---
-      // Model ini ada di daftar JSON Anda (urutan pertama)
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      // --- MENGGUNAKAN MODEL 'gemini-2.5-flash' ---
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${userApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
@@ -185,10 +212,6 @@ export default function Dashboard() {
         throw new Error(data.error.message)
       }
 
-      if (!data.candidates || data.candidates.length === 0) {
-         throw new Error("Bot tidak memberikan jawaban (Safety Filter).")
-      }
-
       const aiResponse = data.candidates[0].content.parts[0].text
       setChatHistory(prev => [...prev, { sender: 'bot', text: aiResponse }])
 
@@ -196,7 +219,7 @@ export default function Dashboard() {
       console.error("Chatbot Error:", error)
       setChatHistory(prev => [...prev, { 
         sender: 'bot', 
-        text: `Error: ${error.message}` 
+        text: `Gagal terhubung: ${error.message}. Coba periksa API Key Anda.` 
       }])
     } finally {
       setIsTyping(false)
@@ -207,7 +230,7 @@ export default function Dashboard() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [chatHistory, isChatOpen, isTyping])
 
-  // --- 5. LOGOUT ---
+  // --- 7. LOGOUT ---
   const handleLogout = () => {
     localStorage.removeItem('user_akademik')
     navigate('/login', { replace: true })
@@ -234,7 +257,7 @@ export default function Dashboard() {
 
   const formatDate = (date) => new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
 
-  // --- MODAL COMPONENT ---
+  // --- MODAL DETAIL ---
   const AnnouncementModal = ({ item, onClose }) => {
     if (!item) return null
     return (
@@ -258,10 +281,48 @@ export default function Dashboard() {
     )
   }
 
+  // --- MODAL INPUT API KEY ---
+  const ApiKeyModal = () => {
+    if (!showKeyModal) return null
+    return (
+      <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 10000 }}>
+        <div className="absolute inset-0 bg-black bg-opacity-70 backdrop-blur-sm" onClick={() => setShowKeyModal(false)}></div>
+        <div className="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-pop-in">
+          <div className="flex items-center gap-3 mb-4 text-blue-600">
+            <FiKey size={24} />
+            <h3 className="text-xl font-bold">Setup Chatbot AI</h3>
+          </div>
+          <p className="text-sm text-gray-600 mb-4">
+            Masukkan <strong>Google Gemini API Key</strong> Anda untuk menggunakan fitur ini. 
+            Data disimpan di browser Anda.
+          </p>
+          <form onSubmit={handleSaveApiKey}>
+            <label className="block text-xs font-bold text-gray-700 uppercase mb-2">API Key</label>
+            <input 
+              type="password" 
+              name="apiKey"
+              defaultValue={userApiKey}
+              placeholder="AIzaSy..." 
+              className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none mb-4"
+            />
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setShowKeyModal(false)} className="flex-1 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-bold transition">Batal</button>
+              <button type="submit" className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg transition">Simpan</button>
+            </div>
+          </form>
+          <div className="mt-4 text-center">
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline">Belum punya key? Dapatkan di sini</a>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-screen bg-gray-50 font-sans text-gray-800 overflow-hidden relative">
       <style>{`@keyframes popIn { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } } .animate-pop-in { animation: popIn 0.2s cubic-bezier(0.165, 0.84, 0.44, 1) forwards; }`}</style>
 
+      <ApiKeyModal />
       {selectedAnnouncement && <AnnouncementModal item={selectedAnnouncement} onClose={() => setSelectedAnnouncement(null)} />}
       {mobileSidebarOpen && <div onClick={() => setMobileSidebarOpen(false)} className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden transition-opacity"></div>}
 
@@ -467,7 +528,11 @@ export default function Dashboard() {
                 <div className="w-9 h-9 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/30"><FiMessageSquare /></div>
                 <div><h4 className="font-bold text-sm">Akademik AI</h4><div className="flex items-center gap-1"><span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span><p className="text-[10px] text-blue-100">Online</p></div></div>
               </div>
-              <button onClick={() => setIsChatOpen(false)} className="hover:bg-white/20 p-1.5 rounded-full transition"><FiX /></button>
+              <div className="flex gap-1">
+                {/* Tombol SETTING API KEY */}
+                <button onClick={() => setShowKeyModal(true)} className="hover:bg-white/20 p-1.5 rounded-full transition text-blue-100 hover:text-white" title="Set API Key"><FiKey size={18} /></button>
+                <button onClick={() => setIsChatOpen(false)} className="hover:bg-white/20 p-1.5 rounded-full transition"><FiX size={20} /></button>
+              </div>
             </div>
             <div className="flex-1 bg-gray-50 p-4 overflow-y-auto space-y-4">
               {chatHistory.map((msg, idx) => (
