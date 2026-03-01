@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   FiUploadCloud, FiFileText, FiCamera, FiRefreshCcw, 
-  FiSave, FiCheckCircle, FiLoader, FiImage, FiX
+  FiSave, FiCheckCircle, FiLoader, FiTrash2, FiImage, FiX
 } from 'react-icons/fi';
 import Tesseract from 'tesseract.js';
 import { supabase } from '../../supabaseClient'; 
