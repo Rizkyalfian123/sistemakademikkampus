@@ -8,6 +8,7 @@ import { Header } from '../components/layout/AdminHeader';
 import { AdminSidebar } from '../components/layout/AdminSidebar';
 import { AnnouncementFormModal } from '../components/modals/AnnouncementFormModal'; 
 import { OCRScannerView } from '../components/views/OCRScannerView';
+import { VerifikasiView } from '../components/views/VerifikasiView';
 
 // VIEWS (Halaman Konten)
 import { PengumumanView } from '../components/views/PengumumanView'; 
@@ -245,7 +246,7 @@ const AdminDashboard = () => {
         return <OCRScannerView />;
         
       case 'Verifikasi':
-        return <PlaceholderView name="Verifikasi" />;
+        return <VerifikasiView />;;
 
       default:
         return <PlaceholderView name={activeMenu} />;
