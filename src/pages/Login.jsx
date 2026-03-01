@@ -48,8 +48,13 @@ export default function Login() {
 
       localStorage.setItem('user_akademik', JSON.stringify(sessionData))
       
-      // 6. Redirect ke Dashboard
-      navigate('/dashboard', { replace: true })
+      // 6. Redirect ke Dashboard berdasarkan Role
+      // Cek apakah Role-nya adalah Admin (sesuaikan tulisan 'Admin' dengan isi database Anda)
+      if (userData.Role === 'Admin' || userData.Role === 'Administrator') {
+        navigate('/admin', { replace: true })
+      } else {
+        navigate('/dashboard', { replace: true })
+      }
 
     } catch (error) {
       setErrorMsg(error.message)

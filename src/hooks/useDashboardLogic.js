@@ -23,7 +23,20 @@ export const useDashboardLogic = () => {
   // Data Dummy Stages
   const [taStages, setTaStages] = useState([
     { id: 1, title: 'Pengajuan Judul TA', status: 'done', date: '20 Jan 2026' },
-    { id: 2, title: 'Seminar Proposal', status: 'open', date: '-' },
+    { 
+      id: 2, 
+      title: 'Seminar Proposal', 
+      status: 'open', 
+      date: '-',
+      // --- SUB-MENU DENGAN STATUS MANDIRI ---
+      subStages: [
+        { id: '2.1', title: 'Form Revisi', file: 'form_revisi.pdf', status: 'pending' },
+        { id: '2.2', title: 'Penilaian Isi Laporan', file: 'penilaian_laporan.pdf', status: 'pending' },
+        { id: '2.3', title: 'Hasil Seminar Proposal', file: 'hasil_sempro.pdf', status: 'pending' },
+        { id: '2.4', title: 'Berita Acara Seminar Proposal', file: 'berita_acara_sempro.pdf', status: 'pending' }
+      ]
+      // --------------------------------------
+    },
     { id: 3, title: 'Revisi Seminar Proposal', status: 'locked', date: '-' },
     { id: 4, title: 'Seminar Hasil', status: 'locked', date: '-' },
     { id: 5, title: 'Revisi Seminar Hasil', status: 'locked', date: '-' },
@@ -65,12 +78,10 @@ export const useDashboardLogic = () => {
 
         console.log("🔍 Mencari NIM untuk Nama:", parsed.name);
 
-        // Query ke tabel 'data_mahasiswa' berdasarkan 'nama_lengkap'
-        // Menggunakan ilike agar tidak sensitif huruf besar/kecil (case-insensitive)
         const { data, error } = await supabase
           .from('data_mahasiswa')
           .select('nim, nama_lengkap') 
-          .ilike('nama_lengkap', parsed.name) // <-- UBAH DI SINI (Search by Nama)
+          .ilike('nama_lengkap', parsed.name) 
           .maybeSingle(); 
 
         if (error) {
@@ -79,11 +90,10 @@ export const useDashboardLogic = () => {
         } else if (data) {
           console.log("✅ Data Ditemukan:", data);
           
-          // UPDATE STATE USER
           const newData = {
             ...parsed,
-            nim: data.nim, // Ambil NIM dari DB
-            name: data.nama_lengkap || parsed.name // Pastikan nama sinkron
+            nim: data.nim, 
+            name: data.nama_lengkap || parsed.name 
           };
 
           setUser(prev => ({
@@ -92,7 +102,6 @@ export const useDashboardLogic = () => {
             name: data.nama_lengkap || prev.name
           }));
 
-          // Simpan ke LocalStorage agar permanen
           localStorage.setItem('user_akademik', JSON.stringify(newData));
         } else {
           console.warn("⚠️ Data tidak ditemukan untuk nama ini.");
@@ -119,15 +128,60 @@ export const useDashboardLogic = () => {
 
   }, [navigate]);
 
+  // === LOGIKA UPDATE STATUS (SMART AUTO-UNLOCK) ===
   const handleUpdateStatus = (id, type) => {
     const setter = type === 'TA' ? setTaStages : setMagangStages;
-    const stages = type === 'TA' ? taStages : magangStages;
-    const updated = stages.map(s => {
-      if (s.id === id) return { ...s, status: 'done', date: new Date().toLocaleDateString('id-ID') };
-      if (s.id === id + 1) return { ...s, status: 'open' };
-      return s;
+    
+    setter(prevStages => {
+      // 1. BUAT DEEP COPY (Agar aman dimanipulasi)
+      let newStages = JSON.parse(JSON.stringify(prevStages));
+
+      // 2. UPDATE STATUS ITEM YANG DIKLIK
+      newStages = newStages.map(stage => {
+        // A. Jika ID Cocok dengan Stage Utama (Angka)
+        if (stage.id === id) {
+           return { ...stage, status: 'done', date: new Date().toLocaleDateString('id-ID') };
+        }
+        
+        // B. Jika ID Cocok dengan Sub-Stage (String '2.1' dst)
+        if (stage.subStages) {
+           const subIndex = stage.subStages.findIndex(sub => sub.id === id);
+           if (subIndex !== -1) {
+              stage.subStages[subIndex].status = 'done';
+           }
+        }
+        return stage;
+      });
+
+      // 3. CEK OTOMATIS: APAKAH PARENT STAGE SUDAH SELESAI SEMUA?
+      newStages = newStages.map(stage => {
+         if (stage.subStages && stage.subStages.length > 0) {
+            // Cek apakah SEMUA anak sudah 'done'
+            const allSubsDone = stage.subStages.every(sub => sub.status === 'done');
+            
+            // Jika semua anak done, maka BAPAKNYA juga jadi done
+            if (allSubsDone && stage.status !== 'done') {
+               stage.status = 'done';
+               stage.date = new Date().toLocaleDateString('id-ID');
+            }
+         }
+         return stage;
+      });
+
+      // 4. CEK OTOMATIS: BUKA TAHAP SELANJUTNYA (UNLOCK NEXT STAGE)
+      // Loop untuk mencari stage yang 'done', lalu buka stage setelahnya (id + 1)
+      for (let i = 0; i < newStages.length - 1; i++) {
+         const current = newStages[i];
+         const next = newStages[i+1];
+
+         // Jika tahap sekarang SELESAI, dan tahap depan masih TERKUNCI -> BUKA!
+         if (current.status === 'done' && next.status === 'locked') {
+            next.status = 'open';
+         }
+      }
+
+      return newStages;
     });
-    setter(updated);
   };
 
   const getProgress = (stages) => {

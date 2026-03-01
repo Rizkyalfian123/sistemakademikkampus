@@ -3,6 +3,10 @@ import { Routes, Route } from 'react-router-dom' // Perhatikan: Tidak ada 'Route
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import LandingPage from './pages/LandingPage'
+import AdminDashboard from './pages/AdminDashboard';
+
+// --- IMPORT KOMPONEN PENJAGA RUTE ADMIN ---
+import { AdminRoute } from './components/auth/AdminRoute';
 
 export default function App() {
   return (
@@ -16,6 +20,16 @@ export default function App() {
       
       {/* 3. DASHBOARD - Hanya bisa diakses setelah login */}
       <Route path="/dashboard" element={<Dashboard />} />
+
+      {/* 4. DASHBOARD ADMIN - Dilindungi oleh AdminRoute */}
+      <Route 
+        path="/admin" 
+        element={
+          <AdminRoute>
+            <AdminDashboard />
+          </AdminRoute>
+        } 
+      />
     </Routes>
   )
 }

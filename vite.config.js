@@ -2,11 +2,12 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [react()],
-  // PENTING: Harus sama persis dengan nama repo di GitHub
-  base: '/sistemakademikkampus/',
-  build: {
-    outDir: 'docs',
-  },
+export default defineConfig(({ mode }) => {
+  return {
+    plugins: [react()],
+    // LOGIKA OTOMATIS:
+    // Jika sedang build (production), pakai '/sistemakademikkampus/'
+    // Jika sedang dev (localhost), pakai '/'
+    base: mode === 'production' ? '/sistemakademikkampus/' : '/',
+  }
 })

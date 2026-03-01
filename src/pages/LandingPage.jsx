@@ -193,7 +193,7 @@ export default function LandingPage() {
              <a href="#" className="text-white font-bold border-b-2 border-blue-400 pb-1">Beranda</a>
              <a href="#" className="hover:text-white transition">Akademik</a>
              <a href="#" className="hover:text-white transition">Arsip</a>
-             <a href="#" className="hover:text-white transition">Tentang</a>
+             <a href="#" className="hover:text-white transition">Profil Mitra</a>
           </div>
 
           <div className="flex items-center gap-6">

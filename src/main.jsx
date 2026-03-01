@@ -1,18 +1,14 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
-import './index.css'
+import React from 'react'
+import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
+import './index.css'
+import { BrowserRouter } from 'react-router-dom'
 
-// LOGIKA OTOMATIS:
-// Jika sedang mode 'development' (di laptop), pakai '/'
-// Jika sedang mode 'production' (di GitHub), pakai '/sistemakademikkampus'
-const basename = import.meta.env.DEV ? '/' : '/sistemakademikkampus'
-
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <BrowserRouter basename={basename}>
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    {/* basename akan otomatis '/' di localhost DAN '/sistemakademikkampus/' di GitHub */}
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <App />
     </BrowserRouter>
-  </StrictMode>,
+  </React.StrictMode>,
 )

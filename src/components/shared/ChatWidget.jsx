@@ -6,7 +6,7 @@ export const ChatWidget = ({ announcements, taPercent, magangPercent }) => {
   const [chatInput, setChatInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [chatHistory, setChatHistory] = useState([
-    { sender: 'bot', text: 'Halo! Saya asisten akademik (AI) dengan model Gemini 2.5 Flash. Ada yang bisa saya bantu?' }
+    { sender: 'bot', text: 'Halo! Saya asisten akademik (AI) Politeknik Negeri Madiun. Ada yang bisa saya bantu?' }
   ]);
   const [userApiKey, setUserApiKey] = useState('');
   const [showKeyModal, setShowKeyModal] = useState(false);
