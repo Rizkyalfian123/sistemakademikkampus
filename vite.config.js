@@ -9,5 +9,10 @@ export default defineConfig(({ mode }) => {
     // Jika sedang build (production), pakai '/sistemakademikkampus/'
     // Jika sedang dev (localhost), pakai '/'
     base: mode === 'production' ? '/sistemakademikkampus/' : '/',
+    
+    // TAMBAHKAN KODE INI AGAR HASIL BUILD MASUK KE FOLDER 'docs'
+    build: {
+      outDir: 'docs',
+    }
   }
 })
