@@ -6,9 +6,8 @@ import { HashRouter } from 'react-router-dom'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    {/* basename akan otomatis '/' di localhost DAN '/sistemakademikkampus/' di GitHub */}
-    <BrowserRouter basename={import.meta.env.BASE_URL}>
+    <HashRouter>
       <App />
-    </BrowserRouter>
+    </HashRouter>
   </React.StrictMode>,
 )
