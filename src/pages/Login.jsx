@@ -22,7 +22,7 @@ export default function Login() {
         .from('user')
         .select('Email, Role, Username, id')
         .eq('Username', identifier) // identifier di sini adalah input username dari user
-        .single();
+        .maybeSingle();
 
       if (profileError || !profileData) {
         throw new Error('Username tidak ditemukan.');

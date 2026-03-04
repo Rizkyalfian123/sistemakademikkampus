@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   FiCamera, FiImage, FiFileText, FiUploadCloud, 
   FiCheckCircle, FiLoader, FiAlignLeft, FiCheck,
-  FiMaximize, FiX, FiClock, FiEye 
+  FiMaximize, FiX, FiClock, FiEye, 
+  FiZap, FiZapOff, FiRefreshCcw // <-- Tambahan icon untuk fitur kamera
 } from 'react-icons/fi';
 import { supabase } from '../../supabaseClient'; 
 import Tesseract from 'tesseract.js'; 
@@ -27,6 +28,9 @@ export const OcrScannerView = () => {
 
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('image'); 
+
+  // STATE BARU: Untuk kontrol modal kamera
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -53,29 +57,24 @@ export const OcrScannerView = () => {
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const data = imageData.data;
 
-          // Parameter Enhancement (Bisa disesuaikan)
-          const contrast = 1.4;   // Meningkatkan kontras teks vs kertas
-          const brightness = 15;  // Membuat kertas lebih putih
-          const saturation = 1.5; // Membuat stempel/logo tetap berwarna tajam
+          const contrast = 1.4;   
+          const brightness = 15;  
+          const saturation = 1.5; 
 
           for (let i = 0; i < data.length; i += 4) {
             let r = data[i];
             let g = data[i + 1];
             let b = data[i + 2];
 
-            // 1. Brightness & Contrast Adjustment
             r = (r - 128) * contrast + 128 + brightness;
             g = (g - 128) * contrast + 128 + brightness;
             b = (b - 128) * contrast + 128 + brightness;
 
-            // 2. Saturation Boost (Agar warna asli tetap muncul kuat)
             const gray = 0.2989 * r + 0.5870 * g + 0.1140 * b;
             r = gray + (r - gray) * saturation;
             g = gray + (g - gray) * saturation;
             b = gray + (b - gray) * saturation;
 
-            // 3. Simple White Balance / Clipping
-            // Menghapus noise abu-abu di latar belakang kertas (memaksanya ke putih)
             const threshold = 190;
             if (r > threshold && g > threshold && b > threshold) {
                 r = Math.min(255, r + 20);
@@ -90,7 +89,7 @@ export const OcrScannerView = () => {
 
           ctx.putImageData(imageData, 0, 0);
           
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.85); // Kualitas tinggi
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85); 
           canvas.toBlob((blob) => {
             resolve({ blob, dataUrl });
           }, 'image/jpeg', 0.85);
@@ -121,6 +120,30 @@ export const OcrScannerView = () => {
       alert("Mohon pilih file gambar (JPG/PNG)!");
       e.target.value = null;
     }
+  };
+
+  // FUNGSI BARU: Menangkap hasil jepretan kamera dan memprosesnya
+  const handleCameraCapture = async (base64Image) => {
+    setIsCameraOpen(false); // Tutup kamera
+
+    // Konversi base64 menjadi File agar bisa masuk ke proses existing
+    const res = await fetch(base64Image);
+    const blob = await res.blob();
+    const file = new File([blob], "camera_scan.jpg", { type: "image/jpeg" });
+
+    // Masukkan ke state persis seperti saat user upload gambar
+    setSelectedImage(file);
+    setOcrResult(''); 
+    setSuccessData(false);
+    setIsProcessingImage(true);
+    setPreviewUrl(URL.createObjectURL(file)); 
+
+    // Eksekusi magic color enhancement
+    const { blob: processedBlob, dataUrl } = await processImageToScan(file);
+    
+    setProcessedFileBlob(processedBlob); 
+    setPreviewUrl(dataUrl);     
+    setIsProcessingImage(false);
   };
 
   const handleStartOCR = async (e) => {
@@ -223,12 +246,26 @@ export const OcrScannerView = () => {
               <form onSubmit={handleStartOCR} className="space-y-4">
                 <div className="border-2 border-dashed border-blue-200 bg-blue-50/50 rounded-xl p-4 text-center transition-colors hover:bg-blue-50">
                   {!previewUrl ? (
-                    <label className="cursor-pointer block py-4">
-                      <FiUploadCloud size={32} className="text-blue-500 mx-auto mb-2" />
-                      <span className="text-sm font-bold text-blue-700 block">Upload Foto/Scan Dokumen</span>
-                      <span className="text-xs text-gray-500">Format: JPG, PNG</span>
-                      <input type="file" accept="image/jpeg, image/png" onChange={handleImageSelect} className="hidden" required />
-                    </label>
+                    <div className="flex flex-col gap-2">
+                      {/* Tombol Upload Existing */}
+                      <label className="cursor-pointer block pt-2 pb-4">
+                        <FiUploadCloud size={32} className="text-blue-500 mx-auto mb-2" />
+                        <span className="text-sm font-bold text-blue-700 block">Upload Foto/Scan Dokumen</span>
+                        <span className="text-xs text-gray-500">Format: JPG, PNG</span>
+                        <input type="file" accept="image/jpeg, image/png" onChange={handleImageSelect} className="hidden" required={!selectedImage} />
+                      </label>
+                      
+                      <div className="flex items-center justify-center gap-2 pb-2">
+                         <span className="h-px w-10 bg-blue-200"></span>
+                         <span className="text-xs text-blue-400 font-bold">ATAU</span>
+                         <span className="h-px w-10 bg-blue-200"></span>
+                      </div>
+                      
+                      {/* Tombol Kamera Baru */}
+                      <button type="button" onClick={() => setIsCameraOpen(true)} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors flex justify-center items-center gap-2 text-sm shadow-md">
+                         <FiCamera size={16} /> Buka Kamera
+                      </button>
+                    </div>
                   ) : (
                     <div className="relative">
                       <div className="bg-gray-100 rounded-lg p-2 flex items-center justify-center">
@@ -377,6 +414,157 @@ export const OcrScannerView = () => {
           </div>
         </div>
       )}
+
+      {/* ========================================================= */}
+      {/* MODAL KAMERA & FLASH (WEBRTC) */}
+      {/* ========================================================= */}
+      {isCameraOpen && (
+        <CameraScannerModal 
+          onClose={() => setIsCameraOpen(false)} 
+          onCapture={handleCameraCapture} 
+        />
+      )}
     </>
+  );
+};
+
+// =========================================================================
+// KOMPONEN KAMERA INTERNAL (Diletakkan di file yang sama agar tidak error)
+// =========================================================================
+const CameraScannerModal = ({ onClose, onCapture }) => {
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  
+  const [stream, setStream] = useState(null);
+  const [isFlashOn, setIsFlashOn] = useState(false);
+  const [hasFlash, setHasFlash] = useState(false);
+  const [capturedImage, setCapturedImage] = useState(null);
+  const [cameraFacing, setCameraFacing] = useState('environment'); 
+
+  const startCamera = async () => {
+    try {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      const constraints = {
+        video: {
+          facingMode: cameraFacing,
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        }
+      };
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      setStream(mediaStream);
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+
+      const track = mediaStream.getVideoTracks()[0];
+      const capabilities = track.getCapabilities();
+      if (capabilities.torch) {
+        setHasFlash(true);
+      } else {
+        setHasFlash(false);
+      }
+    } catch (err) {
+      console.error("Kamera error:", err);
+      alert("Akses kamera ditolak. Pastikan browser diizinkan mengakses kamera.");
+      onClose();
+    }
+  };
+
+  const toggleFlash = async () => {
+    if (!stream) return;
+    const track = stream.getVideoTracks()[0];
+    try {
+      await track.applyConstraints({
+        advanced: [{ torch: !isFlashOn }]
+      });
+      setIsFlashOn(!isFlashOn);
+    } catch (err) {
+      console.error("Gagal flash:", err);
+    }
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    const imageData = canvas.toDataURL('image/jpeg', 0.8);
+    setCapturedImage(imageData);
+
+    if (isFlashOn) toggleFlash();
+  };
+
+  const switchCamera = () => {
+    setCameraFacing(prev => prev === 'environment' ? 'user' : 'environment');
+  };
+
+  useEffect(() => {
+    startCamera();
+    return () => {
+      if (stream) stream.getTracks().forEach(track => track.stop());
+    };
+  }, [cameraFacing]);
+
+  return (
+    <div className="fixed inset-0 z-[200] bg-black flex flex-col justify-center items-center">
+      <div className="absolute top-0 w-full p-4 flex justify-between items-center text-white z-10 bg-gradient-to-b from-black/80 to-transparent">
+        <button onClick={onClose} className="p-2 bg-white/20 rounded-full hover:bg-white/40"><FiX size={24} /></button>
+        <h2 className="font-bold tracking-wide">Ambil Foto Dokumen</h2>
+        {hasFlash && !capturedImage ? (
+          <button onClick={toggleFlash} className={`p-2 rounded-full ${isFlashOn ? 'bg-yellow-400 text-black shadow-[0_0_15px_rgba(250,204,21,0.8)]' : 'bg-white/20 hover:bg-white/40'}`}>
+            {isFlashOn ? <FiZap size={24} /> : <FiZapOff size={24} />}
+          </button>
+        ) : <div className="w-10"></div>}
+      </div>
+
+      <div className="relative w-full max-w-lg h-[75vh] bg-gray-900 overflow-hidden flex items-center justify-center">
+        {!capturedImage ? (
+          <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+        ) : (
+          <img src={capturedImage} alt="Captured" className="w-full h-full object-contain" />
+        )}
+
+        {!capturedImage && (
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div className="w-[85%] h-[60%] border-2 border-white/50 relative shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]">
+               <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-blue-500"></div>
+               <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-blue-500"></div>
+               <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-blue-500"></div>
+               <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-blue-500"></div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <canvas ref={canvasRef} className="hidden" />
+
+      <div className="absolute bottom-0 w-full p-8 flex justify-center items-center gap-8 bg-black pb-12">
+        {!capturedImage ? (
+          <>
+            <button onClick={switchCamera} className="p-3 bg-white/10 rounded-full text-white hover:bg-white/30"><FiRefreshCcw size={24} /></button>
+            <button onClick={capturePhoto} className="w-20 h-20 rounded-full border-4 border-white flex justify-center items-center">
+              <div className="w-16 h-16 bg-white rounded-full hover:scale-95 transition-transform"></div>
+            </button>
+            <div className="w-12"></div>
+          </>
+        ) : (
+          <>
+            <button onClick={() => setCapturedImage(null)} className="px-6 py-3 bg-gray-700 rounded-xl text-white font-bold hover:bg-gray-600">Ulangi</button>
+            <button onClick={() => onCapture(capturedImage)} className="px-6 py-3 bg-blue-600 rounded-xl text-white font-bold hover:bg-blue-500 flex items-center gap-2">
+              <FiCheck size={20} /> Gunakan
+            </button>
+          </>
+        )}
+      </div>
+    </div>
   );
 };

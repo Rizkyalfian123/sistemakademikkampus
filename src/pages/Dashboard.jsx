@@ -137,48 +137,46 @@ export default function Dashboard() {
     }
   };
 
-  // C. Download PDF (DINAMIS & OTOMATIS)
   const handleDownloadPDF = async (id, filename, title) => {
     try {
-      // 1. Ambil Data dari LocalDB
       const savedData = localDB[id];
+      if (!savedData) return alert("Simpan data dulu!");
 
-      if (!savedData) {
-        alert("Data form belum ditemukan! Silakan klik 'Isi Data' lalu 'Simpan' terlebih dahulu.");
-        return;
-      }
+      // 1. Pecah data dari dropdown
+      const split1 = (savedData.dosen_penguji_1 || ' | ').split('|');
+      const split2 = (savedData.dosen_penguji_2 || ' | ').split('|');
+      const split3 = (savedData.dosen_penguji_3 || ' | ').split('|');
 
-      // 2. Siapkan Data untuk PDF
+      // 2. Siapkan data dengan NAMA KUNCI yang SESUAI template PDF
       const pdfData = {
          nama_mahasiswa: savedData.nama_mahasiswa,
          nim: savedData.nim, 
          judul_ta: savedData.judul_ta,
          hari_tanggal: savedData.hari_tanggal,
-         ruang_waktu: savedData.ruang_waktu
+         ruang_waktu: savedData.ruang_waktu,
+         
+         // Harus pakai angka _1, _2, _3 agar PDF mengenalinya
+         nama_penguji_1: split1[0]?.trim(),
+         nip_penguji_1: split1[1]?.trim(),
+         nama_penguji_2: split2[0]?.trim(),
+         nip_penguji_2: split2[1]?.trim(),
+         nama_penguji_3: split3[0]?.trim(),
+         nip_penguji_3: split3[1]?.trim()
       };
 
-      // 3. PATH LOGIC
       const baseUrl = import.meta.env.BASE_URL;
-      
-      // Gunakan filename dari parameter, fallback ke default jika kosong
-      const targetFile = filename || 'berita_acara.pdf';
-      
-      const templatePath = `${baseUrl}templates/${targetFile}`.replace(/\/\//g, '/');
+      const targetFile = 'form_revisi.pdf'; // Nama file template di public/templates/
+      const templatePath = `${baseUrl}/templates/${targetFile}`.replace(/\/+/g, '/');
 
-      console.log(`Mengunduh template: ${targetFile} dari path: ${templatePath}`);
-
-      await generateAndDownloadPDF(
-          templatePath, 
-          pdfData, 
-          `Dokumen_${title ? title.replace(/\s/g, '_') : 'Akademik'}.pdf`
-      );
+      // 3. Eksekusi Download
+      await generateAndDownloadPDF(templatePath, pdfData, 'form_revisi.pdf');
 
     } catch (err) {
       console.error(err);
-      alert(`Gagal mendownload PDF. Pastikan file '${filename || 'berita_acara.pdf'}' ada di folder 'public/templates/'.`);
+      alert("Gagal download. Pastikan file form_revisi.pdf ada di folder public/templates/");
     }
   };
-
+  
   return (
     <div className="flex h-screen bg-gray-50 font-sans text-gray-800 overflow-hidden relative">
       <style>{`

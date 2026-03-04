@@ -6,27 +6,26 @@ export const generateAndDownloadPDF = async (templateUrl, data, outputFilename) 
     const pdfDoc = await PDFDocument.load(existingPdfBytes);
     const form = pdfDoc.getForm();
 
-    // Mapping sesuai request: nama_mahasiswa, nim, hari_tanggal, ruang_waktu, judul_ta
-    const fieldMapping = [
-      'nama_mahasiswa', 
-      'nim', 
-      'hari_tanggal', 
-      'ruang_waktu', 
-      'judul_ta'
-    ];
+    // PERBAIKAN: Kita ambil semua "key" yang ada di data (termasuk nama_penguji_1, dll)
+    // agar tidak perlu menulis daftar manual lagi
+    const allKeys = Object.keys(data); 
     
-    fieldMapping.forEach(key => {
+    allKeys.forEach(key => {
       try {
         const inputField = form.getTextField(key);
+        // Jika kotak tersebut ada di PDF dan datanya ada di React
         if (inputField && data[key]) {
           inputField.setText(data[key].toString());
         }
       } catch (err) {
-        console.warn(`Field PDF '${key}' tidak ditemukan atau gagal diisi.`);
+        // Baris ini akan muncul jika ada data di React tapi kotaknya tidak ada di PDF
+        console.warn(`Field PDF '${key}' tidak ditemukan di template, melewati...`);
       }
     });
 
+    // Mengunci form agar tidak bisa diedit lagi secara manual setelah didownload
     form.flatten();
+    
     const pdfBytes = await pdfDoc.save();
     
     // Download File
