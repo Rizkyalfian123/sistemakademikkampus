@@ -1,11 +1,13 @@
 import { 
   FiHome, FiSpeaker, FiMaximize, FiCheckSquare, 
-  FiPieChart, FiMessageSquare, FiDatabase, FiEdit2
+  FiPieChart, FiMessageSquare, FiDatabase, FiEdit2, FiBriefcase, FiUsers
 } from 'react-icons/fi';
 
 export const MENU_ITEMS = [
   { id: 'Dashboard', label: 'Dashboard', icon: FiHome },
   { id: 'Pengumuman', label: 'Pengumuman', icon: FiSpeaker },
+  { id: 'Mitra', label: 'Profil Mitra', icon: FiBriefcase },
+  { id: 'ImportMahasiswa', label: 'Import Mahasiswa', icon: FiUsers },
   { id: 'OCRScanner', label: 'OCR Scanner', icon: FiMaximize },
   { id: 'Verifikasi', label: 'Verifikasi', icon: FiCheckSquare },
   { id: 'Analytics', label: 'Analytics', icon: FiPieChart },

@@ -11,57 +11,56 @@ export default function Login() {
   const [errorMsg, setErrorMsg] = useState('')
 
   const handleLogin = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setErrorMsg('')
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg('');
 
     try {
-      // 1. Tentukan Login via Email atau Username
-      const isEmail = identifier.includes('@')
-      const columnToSearch = isEmail ? 'Email' : 'Username'
-
-      // 2. Cari User di Database
-      const { data: userData, error } = await supabase
+      // 1. CARI EMAIL BERDASARKAN USERNAME
+      // Kita cari di tabel 'user' manual Anda untuk mendapatkan email resminya
+      const { data: profileData, error: profileError } = await supabase
         .from('user')
-        .select('*')
-        .eq(columnToSearch, identifier)
-        .single()
+        .select('Email, Role, Username, id')
+        .eq('Username', identifier) // identifier di sini adalah input username dari user
+        .single();
 
-      // 3. Validasi Akun
-      if (error || !userData) {
-        throw new Error('Akun tidak ditemukan. Cek Username/Email Anda.')
+      if (profileError || !profileData) {
+        throw new Error('Username tidak ditemukan.');
       }
 
-      // 4. Cek Password
-      if (userData.Password !== password) {
-        throw new Error('Password salah!')
-      }
+      const userEmail = profileData.Email;
 
-      // 5. Simpan Sesi
+      // 2. LOGIN KE SUPABASE AUTH MENGGUNAKAN EMAIL YANG DITEMUKAN
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: userEmail,
+        password: password,
+      });
+
+      if (authError) throw authError;
+
+      // 3. SIMPAN SESI KE LOCALSTORAGE (Data gabungan)
       const sessionData = {
-        id: userData.id,
-        email: userData.Email,
-        name: userData.Username,
-        role: userData.Role,
-        avatar: null
-      }
+        id: profileData.id,
+        email: profileData.Email,
+        name: profileData.Username,
+        role: profileData.Role,
+      };
 
-      localStorage.setItem('user_akademik', JSON.stringify(sessionData))
+      localStorage.setItem('user_akademik', JSON.stringify(sessionData));
       
-      // 6. Redirect ke Dashboard berdasarkan Role
-      // Cek apakah Role-nya adalah Admin (sesuaikan tulisan 'Admin' dengan isi database Anda)
-      if (userData.Role === 'Admin' || userData.Role === 'Administrator') {
-        navigate('/admin', { replace: true })
+      // 4. REDIRECT BERDASARKAN ROLE
+      if (profileData.Role === 'Admin' || profileData.Role === 'Administrator') {
+        navigate('/admin', { replace: true });
       } else {
-        navigate('/dashboard', { replace: true })
+        navigate('/dashboard', { replace: true });
       }
 
     } catch (error) {
-      setErrorMsg(error.message)
+      setErrorMsg(error.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     // CONTAINER UTAMA: Gradient Background Gelap (Tailwind v2 Friendly)

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   FiPlus, FiSearch, FiEye, FiSettings, 
-  FiEdit2, FiTrash2, FiX, FiClock 
+  FiEdit2, FiTrash2, FiX, FiClock, FiImage 
 } from 'react-icons/fi';
 import { supabase } from '../../supabaseClient';
 import { AnnouncementFormModal } from '../modals/AnnouncementFormModal';
@@ -148,10 +148,11 @@ export const PengumumanView = ({ user }) => {
                     </td>
                     <td className="px-6 py-5 align-middle">
                       <div 
-                        className="text-[14px] font-bold text-gray-800 mb-1.5 group-hover:text-blue-600 transition-colors cursor-pointer" 
+                        className="text-[14px] font-bold text-gray-800 mb-1.5 group-hover:text-blue-600 transition-colors cursor-pointer flex items-center gap-2" 
                         onClick={() => setViewingData(row)}
                       >
                          {row.Judul}
+                         {row.image_url && <FiImage className="text-blue-400" title="Memiliki lampiran" />}
                       </div>
                       <p 
                         className="text-[12px] text-gray-500 leading-relaxed mb-3 max-w-3xl"
@@ -202,66 +203,84 @@ export const PengumumanView = ({ user }) => {
       </div>
 
       {/* ========================================================= */}
-      {/* MODAL DETAIL PENGUMUMAN */}
+      {/* MODAL DETAIL PENGUMUMAN (DENGAN LOGIKA PEMBEDA QR/SCAN) */}
       {/* ========================================================= */}
       {viewingData && (
-        /* PERUBAHAN PENTING: Gunakan bg-black bg-opacity-70 agar dijamin gelap di versi Tailwind manapun */
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black bg-opacity-80 backdrop-blur-sm animate-fade-in">
-          
           <div 
             className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden animate-pop-in" 
-            style={{ maxHeight: '75vh' }}
+            style={{ maxHeight: '85vh' }}
           >
             {/* Header Biru */}
             <div className="p-6 md:p-8 bg-blue-700 text-white shrink-0 relative">
               <div className="flex items-center mb-4">
                 <span className="border border-white/80 text-white text-[12px] font-bold px-4 py-1.5 rounded-full uppercase tracking-wider">
-                  {viewingData.kategori || 'PRESTASI'}
+                  {viewingData.kategori || 'UMUM'}
                 </span>
               </div>
-              
               <h2 className="text-xl md:text-2xl font-bold leading-snug uppercase pr-12">
                 📢 {viewingData.Judul}
               </h2>
-              
               <div className="flex items-center gap-2 text-blue-100 text-sm mt-3 font-medium">
                 <FiClock size={16} /> 
                 <span>{formatDateModal(viewingData.created_at)}</span>
               </div>
-              
-              <button 
-                onClick={() => setViewingData(null)} 
-                className="absolute top-6 right-6 hover:bg-blue-600 p-2 rounded-full transition-all text-white flex items-center justify-center"
-              >
+              <button onClick={() => setViewingData(null)} className="absolute top-6 right-6 hover:bg-blue-600 p-2 rounded-full transition-all text-white flex items-center justify-center">
                 <FiX size={24} />
               </button>
             </div>
 
             {/* Content Area */}
             <div className="p-6 md:p-8 overflow-y-auto flex-grow bg-white custom-scrollbar">
+              
+              {/* TAMPILAN GAMBAR / QR CODE VERIFIKASI */}
+              {viewingData.image_url && (
+                viewingData.image_url.toLowerCase().includes('qr') ? (
+                  // 1. GAYA KHUSUS QR CODE (Rapi di Tengah)
+                  <div className="mb-8 flex flex-col items-center justify-center p-8 bg-blue-50/30 rounded-3xl border-2 border-dashed border-blue-100">
+                    <div className="bg-white p-4 rounded-2xl shadow-xl border border-blue-50">
+                      <img src={viewingData.image_url} alt="QR Verification" className="w-40 h-40 object-contain" />
+                    </div>
+                    <div className="mt-4 text-center">
+                      <p className="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em]">E-Signature Verified</p>
+                      <p className="text-[10px] text-gray-400 mt-1">Scan untuk verifikasi keaslian dokumen</p>
+                    </div>
+                  </div>
+                ) : (
+                  // 2. GAYA LAMPIRAN DOKUMEN OCR (Lebar Kertas)
+                  <div className="mb-6 rounded-xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50 group relative">
+                    <img 
+                      src={viewingData.image_url} 
+                      alt="Lampiran Dokumen"
+                      className="w-full h-auto object-contain max-h-[450px] mx-auto transition-transform duration-500 group-hover:scale-[1.02]"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                    <div className="bg-gray-50/80 backdrop-blur-sm py-2 px-4 border-t border-gray-100 text-center">
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest flex items-center justify-center gap-2">
+                        <FiImage /> Lampiran Dokumen Digital
+                      </p>
+                    </div>
+                  </div>
+                )
+              )}
+
+              {/* TEKS PENGUMUMAN */}
               <div className="text-gray-700 text-[15px] leading-[1.8] whitespace-pre-wrap break-words">
                 {viewingData.isi_pengumuman}
               </div>
               
-              {/* Tanda Tangan */}
-              <div className="mt-8 pt-4 text-gray-600 text-[14px] space-y-1.5">
-                <p>📍 Madiun, {formatDateModal(viewingData.created_at)}</p>
-                <p>🎓 Politeknik Negeri Madiun</p>
-                <p>Bagian Kemahasiswaan</p>
+              <div className="mt-10 pt-6 border-t border-gray-100 text-gray-400 text-[13px] italic text-center">
+                Dokumen ini dipublikasikan secara resmi melalui sistem informasi akademik.
               </div>
             </div>
 
-            {/* Footer Modal dengan Tombol Tutup Grey */}
-            <div className="px-6 py-4 flex justify-end bg-white border-t border-gray-100 shrink-0">
-               <button 
-                onClick={() => setViewingData(null)} 
-                className="px-8 py-2.5 rounded-xl bg-gray-200 text-gray-800 text-sm font-bold hover:bg-gray-300 transition-all active:scale-95"
-              >
-                Tutup
+            {/* Footer Modal */}
+            <div className="px-6 py-4 flex justify-end bg-gray-50 border-t border-gray-100 shrink-0">
+               <button onClick={() => setViewingData(null)} className="px-8 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-500/30">
+                Tutup Pengumuman
               </button>
             </div>
           </div>
-          
         </div>
       )}
 

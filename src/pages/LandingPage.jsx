@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { 
   FiSearch, FiBell, FiLoader, FiX, FiClock, FiFolder, FiArrowRight, 
-  FiCalendar, FiGrid, FiCheckCircle, FiInfo
+  FiCalendar, FiGrid, FiCheckCircle, FiInfo, FiImage, FiBriefcase
 } from 'react-icons/fi'
 
 export default function LandingPage() {
@@ -60,6 +60,14 @@ export default function LandingPage() {
     setFilteredAnnouncements(result)
   }, [searchTerm, activeCategory, allAnnouncements])
 
+  // --- FUNGSI SEARCH TRIGGER ---
+  const handleSearchTrigger = () => {
+    const element = document.getElementById('announcement-results');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   // --- CLICK OUTSIDE NOTIF ---
   useEffect(() => {
     function handleClickOutside(event) {
@@ -78,24 +86,11 @@ export default function LandingPage() {
     })
   }
 
-  // --- STYLES MANUAL (Agar Anti-Bug Z-Index) ---
+  // --- STYLES MANUAL ---
   const styles = {
-    // Memaksa Modal selalu paling depan
-    modalOverlay: {
-      zIndex: 9999, 
-    },
-    // Memaksa Navbar di atas konten Hero
-    navbar: {
-      zIndex: 50,
-      position: 'relative'
-    },
-    // Memaksa Dropdown Notifikasi di atas segalanya di navbar
-    dropdown: {
-      zIndex: 60,
-      position: 'absolute',
-      right: 0,
-      top: '100%',
-    },
+    modalOverlay: { zIndex: 9999 },
+    navbar: { zIndex: 50, position: 'relative' },
+    dropdown: { zIndex: 60, position: 'absolute', right: 0, top: '100%' },
     heroGradient: {
       background: 'linear-gradient(120deg, #0f172a 0%, #1e3a8a 50%, #2563eb 100%)',
       zIndex: 0
@@ -118,45 +113,91 @@ export default function LandingPage() {
     { id: 2, title: 'Jadwal Baru', desc: 'Jadwal semester genap rilis.', type: 'info', icon: FiCalendar },
   ]
 
-  // --- MODAL COMPONENT ---
+  // --- MODAL COMPONENT (GABUNGAN DARI PENGUMUMAN VIEW) ---
   const AnnouncementModal = ({ item, onClose }) => {
     if (!item) return null
     return (
-      <div className="fixed inset-0 flex items-center justify-center p-4" style={styles.modalOverlay}>
-        {/* Backdrop Gelap */}
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black bg-opacity-80 backdrop-blur-sm animate-fade-in" style={styles.modalOverlay}>
+        
         <div 
-          className="absolute inset-0 bg-gray-900 bg-opacity-80 transition-opacity"
-          onClick={onClose}
-        ></div>
-
-        {/* Kotak Modal */}
-        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-screen flex flex-col overflow-hidden transform scale-100 transition-all">
-          
-          {/* Header Modal */}
-          <div className="p-6 md:p-8 flex justify-between items-start text-white flex-shrink-0" style={styles.cardHeaderGradient}>
-            <div className="pr-6">
-              <span className="bg-white bg-opacity-20 border border-white border-opacity-20 text-xs font-bold px-3 py-1 rounded-full uppercase mb-4 inline-block tracking-wider">
-                {item.kategori || 'INFORMASI'}
+          className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden animate-pop-in" 
+          style={{ maxHeight: '85vh' }}
+        >
+          {/* Header Biru ala Admin */}
+          <div className="p-6 md:p-8 bg-blue-700 text-white shrink-0 relative">
+            <div className="flex items-center mb-4">
+              <span className="border border-white/80 text-white text-[12px] font-bold px-4 py-1.5 rounded-full uppercase tracking-wider">
+                {item.kategori || 'UMUM'}
               </span>
-              <h2 className="text-2xl md:text-3xl font-bold leading-tight mb-2">{item.Judul}</h2>
-              <div className="flex items-center gap-2 text-blue-100 text-sm">
-                <FiClock /> <span>{formatDate(item.created_at)}</span>
-              </div>
             </div>
-            <button onClick={onClose} className="bg-white bg-opacity-10 hover:bg-opacity-20 p-2 rounded-full transition focus:outline-none">
+            
+            <h2 className="text-xl md:text-2xl font-bold leading-snug uppercase pr-12">
+              📢 {item.Judul}
+            </h2>
+            
+            <div className="flex items-center gap-2 text-blue-100 text-sm mt-3 font-medium">
+              <FiClock size={16} /> 
+              <span>{formatDate(item.created_at)}</span>
+            </div>
+            
+            <button 
+              onClick={onClose} 
+              className="absolute top-6 right-6 hover:bg-blue-600 p-2 rounded-full transition-all text-white flex items-center justify-center"
+            >
               <FiX size={24} />
             </button>
           </div>
 
-          {/* Isi Pengumuman */}
-          <div className="p-8 overflow-y-auto text-gray-700 leading-relaxed text-lg whitespace-pre-wrap">
-            {item.isi_pengumuman}
+          {/* Content Area (Logika Pembeda QR/Scan) */}
+          <div className="p-6 md:p-8 overflow-y-auto flex-grow bg-white custom-scrollbar">
+            
+            {item.image_url && (
+              item.image_url.toLowerCase().includes('qr') ? (
+                // 1. GAYA KHUSUS QR CODE
+                <div className="mb-8 flex flex-col items-center justify-center p-8 bg-blue-50/30 rounded-3xl border-2 border-dashed border-blue-100">
+                  <div className="bg-white p-4 rounded-2xl shadow-xl border border-blue-50">
+                    <img src={item.image_url} alt="QR Verification" className="w-40 h-40 object-contain" />
+                  </div>
+                  <div className="mt-4 text-center">
+                    <p className="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em]">E-Signature Verified</p>
+                    <p className="text-[10px] text-gray-400 mt-1">Scan untuk verifikasi keaslian dokumen</p>
+                  </div>
+                </div>
+              ) : (
+                // 2. GAYA LAMPIRAN DOKUMEN OCR
+                <div className="mb-6 rounded-xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50 group relative">
+                  <img 
+                    src={item.image_url} 
+                    alt="Lampiran Dokumen"
+                    className="w-full h-auto object-contain max-h-[450px] mx-auto transition-transform duration-500 group-hover:scale-[1.02]"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                  <div className="bg-gray-50/80 backdrop-blur-sm py-2 px-4 border-t border-gray-100 text-center">
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest flex items-center justify-center gap-2">
+                      <FiImage /> Lampiran Dokumen Digital
+                    </p>
+                  </div>
+                </div>
+              )
+            )}
+
+            {/* TEKS PENGUMUMAN */}
+            <div className="text-gray-700 text-[15px] leading-[1.8] whitespace-pre-wrap break-words">
+              {item.isi_pengumuman}
+            </div>
+            
+            <div className="mt-10 pt-6 border-t border-gray-100 text-gray-400 text-[13px] italic text-center">
+              Dokumen ini dipublikasikan secara resmi melalui sistem informasi akademik.
+            </div>
           </div>
 
-          {/* Footer */}
-          <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end flex-shrink-0">
-            <button onClick={onClose} className="px-8 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-xl transition">
-              Tutup
+          {/* Footer Modal */}
+          <div className="px-6 py-4 flex justify-end bg-gray-50 border-t border-gray-100 shrink-0">
+             <button 
+              onClick={onClose} 
+              className="px-8 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-500/30"
+            >
+              Tutup Pengumuman
             </button>
           </div>
         </div>
@@ -167,7 +208,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen font-sans text-gray-800 bg-gray-50 relative">
       
-      {/* 1. MODAL (Pop-up) - Pasti Paling Depan karena zIndex 9999 */}
+      {/* 1. MODAL (Pop-up) */}
       {selectedAnnouncement && (
         <AnnouncementModal 
           item={selectedAnnouncement} 
@@ -177,56 +218,26 @@ export default function LandingPage() {
 
       {/* 2. HERO SECTION */}
       <div className="relative pb-32 pt-6 overflow-hidden" style={styles.heroGradient}>
-        
-        {/* Dekorasi Background */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-white opacity-5 rounded-full transform translate-x-20 -translate-y-20 pointer-events-none"></div>
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-400 opacity-10 rounded-full transform -translate-x-10 translate-y-10 pointer-events-none"></div>
 
-        {/* NAVBAR (Diberi z-index 50 agar notifikasi muncul di atas judul hero) */}
+        {/* NAVBAR */}
         <nav className="flex items-center justify-between px-6 max-w-7xl mx-auto mb-16" style={styles.navbar}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white bg-opacity-10 backdrop-blur-md rounded-xl flex items-center justify-center text-white font-bold border border-white border-opacity-20 shadow-lg">PP</div>
+            <div className="w-10 h-10 bg-white bg-opacity-10 backdrop-blur-md rounded-xl flex items-center justify-center text-white font-bold border border-white border-opacity-20 shadow-lg cursor-pointer" onClick={() => window.location.reload()}>PNM</div>
             <h1 className="text-xl font-bold text-white tracking-wide">Kampus Portal</h1>
           </div>
 
           <div className="hidden md:flex gap-8 text-sm font-medium text-blue-100">
-             <a href="#" className="text-white font-bold border-b-2 border-blue-400 pb-1">Beranda</a>
+             <Link to="/" className="text-white font-bold border-b-2 border-blue-400 pb-1">Beranda</Link>
              <a href="#" className="hover:text-white transition">Akademik</a>
              <a href="#" className="hover:text-white transition">Arsip</a>
-             <a href="#" className="hover:text-white transition">Profil Mitra</a>
+             <Link to="/mitra" className="hover:text-white transition flex items-center gap-1.5">
+               Profil Mitra <FiBriefcase size={14} className="text-blue-300" />
+             </Link>
           </div>
 
           <div className="flex items-center gap-6">
-             {/* NOTIFIKASI */}
-             <div className="relative" ref={notifRef}>
-                <button onClick={() => setShowNotif(!showNotif)} className="p-2 rounded-full hover:bg-white hover:bg-opacity-10 transition relative focus:outline-none">
-                   <FiBell className="text-blue-100 text-2xl hover:text-white" />
-                   <span className="absolute top-1 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-blue-900 shadow animate-pulse"></span>
-                </button>
-
-                {/* Dropdown Notif (zIndex 60) */}
-                {showNotif && (
-                  <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden w-80 mt-2" style={styles.dropdown}>
-                    <div className="px-5 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-                      <h3 className="font-bold text-gray-800">Notifikasi</h3>
-                      <button onClick={() => setShowNotif(false)} className="text-gray-400 hover:text-gray-600"><FiX /></button>
-                    </div>
-                    <div className="max-h-64 overflow-y-auto">
-                      {notifications.map((notif) => (
-                        <div key={notif.id} className="px-5 py-4 border-b border-gray-50 hover:bg-blue-50 transition cursor-pointer flex gap-4">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${notif.type === 'urgent' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
-                            <notif.icon />
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-gray-800 text-sm">{notif.title}</h4>
-                            <p className="text-xs text-gray-500 mt-1">{notif.desc}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-             </div>
 
              <button onClick={() => navigate('/login')} className="bg-white text-blue-900 px-6 py-2.5 rounded-full font-bold shadow-lg hover:bg-blue-50 transition transform hover:-translate-y-0.5">
                 Masuk
@@ -234,9 +245,9 @@ export default function LandingPage() {
           </div>
         </nav>
 
-        {/* Hero Content (z-index 0 agar di bawah notifikasi) */}
+        {/* Hero Content */}
         <div className="relative z-0 text-center px-4 max-w-5xl mx-auto">
-           <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-6 leading-tight drop-shadow-md">
+           <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-6 leading-tight drop-shadow-md uppercase tracking-tight">
              Portal Informasi <br/> 
              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-cyan-300">
                Politeknik Negeri Madiun
@@ -252,9 +263,13 @@ export default function LandingPage() {
                 placeholder="Cari pengumuman..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearchTrigger()}
                 className="w-full pl-16 pr-36 py-5 rounded-full focus:outline-none shadow-2xl text-gray-700 text-lg border-4 border-white/10 bg-white"
               />
-              <button className="absolute right-2 top-2 bottom-2 bg-blue-600 hover:bg-blue-700 text-white px-8 rounded-full font-bold transition shadow-md">
+              <button 
+                onClick={handleSearchTrigger}
+                className="absolute right-2 top-2 bottom-2 bg-blue-600 hover:bg-blue-700 text-white px-8 rounded-full font-bold transition shadow-md active:scale-95"
+              >
                  Cari
               </button>
            </div>
@@ -281,25 +296,39 @@ export default function LandingPage() {
       <main className="max-w-7xl mx-auto px-6 py-16 -mt-10 relative z-10">
          
          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-            {[
-              { title: 'Kalender Event', icon: FiCalendar, color: 'text-blue-500', bg: 'bg-blue-50' },
-              { title: 'Arsip Lama', icon: FiFolder, color: 'text-yellow-500', bg: 'bg-yellow-50' },
-              { title: 'Fasilitas', icon: FiGrid, color: 'text-green-500', bg: 'bg-green-50' },
-            ].map((item, idx) => (
-              <div key={idx} className="bg-white p-5 rounded-2xl shadow-lg hover:shadow-2xl transition-all cursor-pointer flex items-center gap-4 border border-gray-100 transform hover:-translate-y-1">
-                 <div className={`w-14 h-14 ${item.bg} ${item.color} rounded-2xl flex items-center justify-center`}>
-                    <item.icon size={28} />
-                 </div>
-                 <div>
-                    <h3 className="font-bold text-gray-800 text-lg">{item.title}</h3>
-                    <p className="text-xs text-gray-400">Akses cepat menu</p>
-                 </div>
-              </div>
-            ))}
+            <Link to="/mitra" className="bg-white p-5 rounded-2xl shadow-lg hover:shadow-2xl transition-all flex items-center gap-4 border border-gray-100 transform hover:-translate-y-1 group">
+               <div className="w-14 h-14 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                  <FiBriefcase size={28} />
+               </div>
+               <div>
+                  <h3 className="font-bold text-gray-800 text-lg">Profil Mitra</h3>
+                  <p className="text-xs text-gray-400">Daftar Perusahaan Kerjasama</p>
+               </div>
+            </Link>
+
+            <div className="bg-white p-5 rounded-2xl shadow-lg hover:shadow-2xl transition-all cursor-pointer flex items-center gap-4 border border-gray-100 transform hover:-translate-y-1">
+               <div className="w-14 h-14 bg-yellow-50 text-yellow-500 rounded-2xl flex items-center justify-center">
+                  <FiCalendar size={28} />
+               </div>
+               <div>
+                  <h3 className="font-bold text-gray-800 text-lg">Kalender Event</h3>
+                  <p className="text-xs text-gray-400">Jadwal kegiatan kampus</p>
+               </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl shadow-lg hover:shadow-2xl transition-all cursor-pointer flex items-center gap-4 border border-gray-100 transform hover:-translate-y-1">
+               <div className="w-14 h-14 bg-green-50 text-green-500 rounded-2xl flex items-center justify-center">
+                  <FiGrid size={28} />
+               </div>
+               <div>
+                  <h3 className="font-bold text-gray-800 text-lg">Fasilitas</h3>
+                  <p className="text-xs text-gray-400">Informasi sarana prasarana</p>
+               </div>
+            </div>
          </div>
 
          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-2xl font-bold text-gray-800 border-l-4 border-blue-600 pl-4">
+            <h3 id="announcement-results" className="text-2xl font-bold text-gray-800 border-l-4 border-blue-600 pl-4 uppercase tracking-wider">
               Pengumuman Terbaru
             </h3>
          </div>
@@ -320,42 +349,40 @@ export default function LandingPage() {
                {filteredAnnouncements.map((item) => (
                  <div 
                    key={item.id} 
-                   className="group bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 flex flex-col h-full transform hover:-translate-y-2 cursor-default"
+                   className="group bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 flex flex-col h-full transform hover:-translate-y-2"
                  >
-                   {/* HEADER KARTU */}
-                   <div className="h-48 relative flex items-center justify-center overflow-hidden" style={styles.cardHeaderGradient}>
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full transform translate-x-10 -translate-y-10"></div>
-                      <div className="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-10 rounded-full transform -translate-x-5 translate-y-5"></div>
-                      
-                      <FiFolder className="text-white text-7xl opacity-80 transform group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 drop-shadow-md" />
-                      
-                      <span className="absolute top-4 left-4 bg-white/20 backdrop-blur-md border border-white/30 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
-                        {item.kategori || 'AKADEMIK'}
+                   <div className="h-44 relative flex items-center justify-center overflow-hidden" style={styles.cardHeaderGradient}>
+                      <div className="absolute inset-0 bg-blue-900/10"></div>
+                      <FiFolder className="text-white text-7xl opacity-40 transform group-hover:scale-110 transition-transform duration-500" />
+                      <span className="absolute top-4 left-4 bg-white/20 backdrop-blur-md border border-white/30 text-white text-[9px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                        {item.kategori || 'INFO'}
                       </span>
+                      {item.image_url && (
+                        <div className="absolute top-4 right-4 w-7 h-7 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md border border-white/30 text-white">
+                          <FiImage size={14} />
+                        </div>
+                      )}
                    </div>
 
-                   {/* BODY KARTU */}
                    <div className="p-7 flex-1 flex flex-col">
                      <h3 
-                       className="text-xl font-bold text-gray-800 mb-3 leading-snug cursor-pointer group-hover:text-blue-600 transition-colors line-clamp-2"
+                       className="text-lg font-bold text-gray-800 mb-3 leading-snug cursor-pointer group-hover:text-blue-600 transition-colors line-clamp-2 uppercase"
                        onClick={() => setSelectedAnnouncement(item)}
                      >
                        {item.Judul}
                      </h3>
-                     
                      <p className="text-gray-500 text-sm mb-6 flex-1 leading-relaxed" style={styles.truncate}>
                        {item.isi_pengumuman}
                      </p>
-                     
                      <div className="flex items-center justify-between pt-5 border-t border-gray-50 mt-auto">
-                       <span className="text-xs text-gray-400 font-medium flex items-center gap-1.5">
-                         <FiClock className="text-blue-500" /> {formatDate(item.created_at)}
+                       <span className="text-[10px] text-gray-400 font-bold flex items-center gap-1.5 uppercase">
+                         <FiCalendar className="text-blue-500" /> {formatDate(item.created_at)}
                        </span>
                        <button 
                          onClick={() => setSelectedAnnouncement(item)}
-                         className="flex items-center gap-1 text-blue-600 font-bold text-sm hover:gap-2 transition-all focus:outline-none group-hover:text-blue-700"
+                         className="flex items-center gap-1 text-blue-600 font-black text-xs hover:gap-2 transition-all group-hover:text-blue-700 uppercase tracking-wider"
                        >
-                         Baca Detail <FiArrowRight />
+                         Detail <FiArrowRight />
                        </button>
                      </div>
                    </div>
@@ -365,12 +392,12 @@ export default function LandingPage() {
          )}
       </main>
 
-      <footer className="bg-white border-t border-gray-200 py-10 text-center">
+      <footer className="bg-white border-t border-gray-200 py-12 text-center">
          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">PP</div>
-            <span className="font-bold text-gray-700">Kampus Portal</span>
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">PNM</div>
+            <span className="font-bold text-gray-700 uppercase tracking-tighter text-lg">Kampus <span className="text-blue-600">Portal</span></span>
          </div>
-         <p className="text-gray-400 text-xs">&copy; 2026 Politeknik Negeri Madiun. All rights reserved.</p>
+         <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">&copy; 2026 Politeknik Negeri Madiun. All rights reserved.</p>
       </footer>
     </div>
   )

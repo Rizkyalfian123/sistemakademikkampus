@@ -7,11 +7,13 @@ import { supabase } from '../supabaseClient';
 import { Header } from '../components/layout/AdminHeader';
 import { AdminSidebar } from '../components/layout/AdminSidebar';
 import { AnnouncementFormModal } from '../components/modals/AnnouncementFormModal'; 
-import { OCRScannerView } from '../components/views/OCRScannerView';
+import { OcrScannerView } from '../components/views/OCRScannerView';
 import { VerifikasiView } from '../components/views/VerifikasiView';
+import AdminImportMahasiswa from '../components/views/admin/AdminImportMahasiswa';
 
 // VIEWS (Halaman Konten)
 import { PengumumanView } from '../components/views/PengumumanView'; 
+import { MitraAdminView } from '../components/views/MitraAdminView'; // IMPORT BARU
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -25,7 +27,7 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState({ total: 0, aktif: 0, draft: 0, views: 0 });
   const [loadingData, setLoadingData] = useState(false);
   
-  // State Modal Edit
+  // State Modal Edit (Khusus untuk Pengumuman di Dashboard)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingData, setEditingData] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -52,13 +54,13 @@ const AdminDashboard = () => {
   const fetchStats = async () => {
     try {
       const { count: totalCount } = await supabase.from('Pengumuman').select('*', { count: 'exact', head: true });
-      const { count: aktifCount } = await supabase.from('Pengumuman').select('*', { count: 'exact', head: true }).eq('kategori', 'Umum'); // Sesuaikan filter status/kategori database Anda
-      const { count: draftCount } = await supabase.from('Pengumuman').select('*', { count: 'exact', head: true }).eq('kategori', 'Akademik'); // Sesuaikan filter status/kategori database Anda
+      const { count: aktifCount } = await supabase.from('Pengumuman').select('*', { count: 'exact', head: true }).eq('kategori', 'Umum');
+      const { count: draftCount } = await supabase.from('Pengumuman').select('*', { count: 'exact', head: true }).eq('kategori', 'Akademik');
 
       setStats({
         total: totalCount || 0,
-        aktif: aktifCount || 0, // Ganti filter eq() di atas sesuai struktur tabel Anda
-        draft: draftCount || 0, // Ganti filter eq() di atas sesuai struktur tabel Anda
+        aktif: aktifCount || 0,
+        draft: draftCount || 0,
         views: 8542 
       });
     } catch (error) {
@@ -96,7 +98,7 @@ const AdminDashboard = () => {
     try {
       await supabase.from('Pengumuman').delete().eq('id', id);
       fetchRecentPengumuman(); 
-      fetchStats(); // Update stat real-time
+      fetchStats();
     } catch (error) {
       console.error("Error deleting data:", error);
     }
@@ -163,7 +165,7 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            {/* TABEL PENGUMUMAN TERBARU (EYE-CATCHING & ELEGANT) */}
+            {/* TABEL PENGUMUMAN TERBARU */}
             <div className="bg-white rounded-[20px] border border-gray-100 shadow-md overflow-hidden flex flex-col">
               <div className="px-7 py-5 flex justify-between items-center bg-white">
                 <h3 className="text-lg font-bold text-gray-800">Pengumuman Terbaru</h3>
@@ -177,7 +179,6 @@ const AdminDashboard = () => {
               
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
-                  {/* Header Biru Gradien Elegan */}
                   <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[11px] uppercase tracking-[0.15em] font-bold">
                     <tr>
                       <th className="px-7 py-4 w-36">Tanggal</th>
@@ -187,18 +188,16 @@ const AdminDashboard = () => {
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {loadingData ? (
-                      <tr><td colSpan="3" className="text-center py-10 text-gray-400 text-sm">Memuat data...</td></tr>
+                      <tr><td colSpan="3" className="text-center py-10 text-gray-400 text-sm">Memproses...</td></tr>
                     ) : recentAnnouncements.length === 0 ? (
-                      <tr><td colSpan="3" className="text-center py-10 text-gray-400 text-sm">Belum ada pengumuman.</td></tr>
+                      <tr><td colSpan="3" className="text-center py-10 text-gray-400 text-sm">Kosong.</td></tr>
                     ) : (
                       recentAnnouncements.map((row) => (
                         <tr key={row.id} className="hover:bg-blue-50/40 transition-colors group">
-                          
                           <td className="px-7 py-4 align-middle">
                             <div className="text-[13px] font-bold text-gray-800">{formatDateTable(row.created_at)}</div>
                             <div className="text-[11px] text-gray-500 font-medium mt-0.5">{formatTimeTable(row.created_at)} WIB</div>
                           </td>
-                          
                           <td className="px-7 py-4 align-middle">
                             <div className="text-[14px] font-bold text-gray-800 mb-2 group-hover:text-blue-600 transition-colors">
                                {row.Judul}
@@ -209,26 +208,12 @@ const AdminDashboard = () => {
                               </span>
                             </div>
                           </td>
-
-                          <td className="px-7 py-4 align-middle">
+                          <td className="px-7 py-4 align-middle text-center">
                             <div className="flex items-center justify-center gap-2">
-                              <button 
-                                onClick={() => { setEditingData(row); setIsModalOpen(true); }}
-                                className="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all shadow-sm"
-                                title="Edit"
-                              >
-                                <FiEdit2 size={14} />
-                              </button>
-                              <button 
-                                onClick={() => handleDelete(row.id)}
-                                className="w-8 h-8 flex items-center justify-center bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all shadow-sm"
-                                title="Hapus"
-                              >
-                                <FiTrash2 size={14} />
-                              </button>
+                              <button onClick={() => { setEditingData(row); setIsModalOpen(true); }} className="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all shadow-sm"><FiEdit2 size={14} /></button>
+                              <button onClick={() => handleDelete(row.id)} className="w-8 h-8 flex items-center justify-center bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all shadow-sm"><FiTrash2 size={14} /></button>
                             </div>
                           </td>
-
                         </tr>
                       ))
                     )}
@@ -241,12 +226,18 @@ const AdminDashboard = () => {
       
       case 'Pengumuman':
         return <PengumumanView user={user} />;
+
+      case 'Mitra':
+        return <MitraAdminView user={user} />;
+
+      case 'ImportMahasiswa':
+        return <AdminImportMahasiswa />;
         
       case 'OCRScanner':
-        return <OCRScannerView />;
+        return <OcrScannerView />;
         
       case 'Verifikasi':
-        return <VerifikasiView />;;
+        return <VerifikasiView />;
 
       default:
         return <PlaceholderView name={activeMenu} />;
@@ -265,6 +256,7 @@ const AdminDashboard = () => {
         </main>
       </div>
 
+      {/* Modal khusus Pengumuman (jika sedang di tab Dashboard) */}
       <AnnouncementFormModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FiFileText, FiBriefcase, FiBell, FiClock, FiChevronRight 
 } from 'react-icons/fi';
@@ -14,7 +14,7 @@ import { FormModal } from '../components/modals/FormModal';
 // --- IMPORTS LOGIC & UTILS ---
 import { useDashboardLogic } from '../hooks/useDashboardLogic';
 import { generateAndDownloadPDF } from '../utils/pdfGenerator';
-// import { supabase } from '../supabaseClient'; // Uncomment jika sudah siap pakai DB asli
+import { supabase } from '../supabaseClient'; // Aktifkan ini untuk akses DB
 
 export default function Dashboard() {
   // 1. Hook Logika Utama (User, Sidebar, Data Stages)
@@ -27,6 +27,67 @@ export default function Dashboard() {
 
   // STATE DATABASE LOKAL (Simulasi penyimpanan sementara agar bisa didownload)
   const [localDB, setLocalDB] = useState({}); 
+
+  // STATE BARU: Khusus menyimpan profil asli dari database
+  const [realProfile, setRealProfile] = useState(null);
+
+  useEffect(() => {
+    const fetchRealProfile = async () => {
+      const sessionData = localStorage.getItem('user_akademik');
+      if (sessionData) {
+        const parsed = JSON.parse(sessionData);
+        // Ambil Nama Lengkap dan NIM dari tabel data_mahasiswa
+        const { data, error } = await supabase
+          .from('data_mahasiswa')
+          .select('nama_lengkap, nim')
+          .eq('id_user', parsed.id)
+          .single();
+
+        if (data) {
+          setRealProfile(data); // Simpan datanya
+        }
+      }
+    };
+    fetchRealProfile();
+  }, []);
+
+  // MEMBUAT USER GABUNGAN (Data Login + Data Profil Asli)
+  const activeUser = {
+    ...logic.user,
+    name: realProfile ? realProfile.nama_lengkap : logic.user?.name,
+    nim: realProfile ? realProfile.nim : '-'
+  };
+
+  // --- LOGIKA BARU: SINKRONISASI NAMA LENGKAP UNTUK HEADER DAN FORM ---
+  useEffect(() => {
+    const fetchStudentName = async () => {
+      try {
+        const sessionData = localStorage.getItem('user_akademik');
+        if (sessionData) {
+          const parsed = JSON.parse(sessionData);
+          
+          // Ambil nama_lengkap dari tabel data_mahasiswa
+          const { data, error } = await supabase
+            .from('data_mahasiswa')
+            .select('nama_lengkap')
+            .eq('id_user', parsed.id)
+            .single();
+
+          if (!error && data?.nama_lengkap) {
+            // Update state user. Ini akan otomatis mengubah nama di Header DAN default value di FormModal
+            logic.setUser(prev => ({
+              ...prev,
+              name: data.nama_lengkap
+            }));
+          }
+        }
+      } catch (err) {
+        console.error("Gagal mengambil nama lengkap:", err.message);
+      }
+    };
+
+    fetchStudentName();
+  }, []); // Hanya berjalan sekali saat halaman dimuat
 
   // 3. Helper Format Tanggal
   const formatDate = (date) => new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -66,8 +127,6 @@ export default function Dashboard() {
       }));
 
       // Update Status di UI
-      // PENTING: Kirim currentStageId apa adanya (jangan di-parseInt)
-      // Agar '2.1' tetap string dan bisa dideteksi sebagai sub-menu oleh Hook logic
       logic.handleUpdateStatus(currentStageId, 'TA'); 
       
       alert("Data berhasil disimpan! Status diperbarui.");
@@ -141,7 +200,7 @@ export default function Dashboard() {
         
         {/* HEADER */}
         <Header 
-            user={logic.user} 
+            user={activeUser} // <--- Akan menampilkan Nama Lengkap
             activeMenu={logic.activeMenu} 
             onMenuClick={() => logic.setMobileSidebarOpen(true)} 
         />
@@ -333,7 +392,7 @@ export default function Dashboard() {
           isOpen={isFormOpen}
           onClose={() => setIsFormOpen(false)}
           onSubmit={handleSaveToDB}
-          user={logic.user}
+          user={activeUser} // <--- Akan menggunakan user.name yang sudah berupa Nama Lengkap
           initialData={localDB[currentStageId]} // Load data jika ada
        />
 

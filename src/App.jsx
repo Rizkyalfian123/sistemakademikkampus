@@ -1,16 +1,18 @@
 import React from 'react'
-import { Routes, Route } from 'react-router-dom' // Perhatikan: Tidak ada 'Router' di sini
+import { Routes, Route } from 'react-router-dom'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import LandingPage from './pages/LandingPage'
 import AdminDashboard from './pages/AdminDashboard';
+
+// PERBAIKAN: Gunakan kurung kurawal { } untuk memperbaiki error "does not provide an export named 'default'"
+import { MitraProfilesView } from './components/views/MitraProfilesView';
 
 // --- IMPORT KOMPONEN PENJAGA RUTE ADMIN ---
 import { AdminRoute } from './components/auth/AdminRoute';
 
 export default function App() {
   return (
-    // <Router> sudah dibuang, langsung Routes saja
     <Routes>
       {/* 1. HALAMAN DEPAN (PENGUMUMAN) - Diakses Pertama Kali */}
       <Route path="/" element={<LandingPage />} />
@@ -23,13 +25,17 @@ export default function App() {
 
       {/* 4. DASHBOARD ADMIN - Dilindungi oleh AdminRoute */}
       <Route 
-        path="/admin" 
+        path="/admin/*" // Gunakan /* jika admin memiliki sub-rute internal
         element={
           <AdminRoute>
             <AdminDashboard />
           </AdminRoute>
         } 
       />
+
+      {/* 5. HALAMAN PROFIL MITRA - Publik */}
+      <Route path="/mitra" element={<MitraProfilesView />} />
+      
     </Routes>
   )
 }
