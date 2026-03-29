@@ -10,6 +10,9 @@ import { AnnouncementFormModal } from '../components/modals/AnnouncementFormModa
 import { OcrScannerView } from '../components/views/OCRScannerView';
 import { VerifikasiView } from '../components/views/VerifikasiView';
 import AdminImportMahasiswa from '../components/views/admin/AdminImportMahasiswa';
+import AdminAnalyticsView from '../components/views/admin/AdminAnalyticsView';
+import ChatbotTrainingCenterView from '../components/views/admin/ChatbotTrainingCenterView';
+import BackupManagementView from '../components/views/admin/BackupManagementView.jsx';
 
 // VIEWS (Halaman Konten)
 import { PengumumanView } from '../components/views/PengumumanView'; 
@@ -238,6 +241,15 @@ const AdminDashboard = () => {
         
       case 'Verifikasi':
         return <VerifikasiView />;
+
+      case 'Analytics':
+        return <AdminAnalyticsView />;
+
+      case 'Chatbot':
+        return <ChatbotTrainingCenterView />;
+
+      case 'Backup':
+        return <BackupManagementView />;
 
       default:
         return <PlaceholderView name={activeMenu} />;

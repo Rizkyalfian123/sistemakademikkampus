@@ -14,21 +14,34 @@ export const StageCard = ({ stage, onUpdate, onDownload, icon: Icon, themeColor 
 
     return (
       <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto min-w-[240px]">
-        {/* Tombol ISI DATA / EDIT */}
-        <button 
-          onClick={() => onUpdate(id)} 
-          // Tombol tetap aktif meski sudah selesai, agar user bisa edit/lihat data
-          // Jika ingin disable setelah selesai, tambahkan: disabled={isDone}
-          className={`flex-1 px-4 py-2 rounded-lg border font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 ${
-            isDone 
-              ? 'border-green-200 text-green-600 bg-green-50 hover:bg-green-100' // Style jika Selesai
-              : btnBorderClass // Style default (Biru/Ungu)
-          }`}
-        >
-          {isDone ? <><FiCheck /> Data Terisi</> : <><FiEdit3 /> Isi Data</>}
-        </button>
+        
+        {isDone ? (
+          // === JIKA SUDAH SELESAI: Tampilkan Label Hijau & Tombol Edit ===
+          <>
+            {/* Label Data Terisi (Hanya Indikator visual) */}
+            <div className="flex-1 px-4 py-2 rounded-lg border border-green-200 text-green-700 bg-green-50 font-bold text-xs flex items-center justify-center gap-2 cursor-default">
+              <FiCheck /> Data Terisi
+            </div>
 
-        {/* Tombol DOWNLOAD PDF */}
+            {/* Tombol Edit Data */}
+            <button 
+              onClick={() => onUpdate(id)} 
+              className="flex-1 px-4 py-2 rounded-lg border border-orange-300 text-orange-600 bg-white hover:bg-orange-50 font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95"
+            >
+              <FiEdit3 /> Edit
+            </button>
+          </>
+        ) : (
+          // === JIKA BELUM SELESAI: Tampilkan Tombol Isi Data Default ===
+          <button 
+            onClick={() => onUpdate(id)} 
+            className={`flex-1 px-4 py-2 rounded-lg border font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 bg-white ${btnBorderClass}`}
+          >
+            <FiEdit3 /> Isi Data
+          </button>
+        )}
+
+        {/* Tombol DOWNLOAD PDF (Selalu Muncul) */}
         <button 
           onClick={() => onDownload(id, filename, title)} 
           disabled={stage.status === 'locked'} // Disable jika tahap utama terkunci
