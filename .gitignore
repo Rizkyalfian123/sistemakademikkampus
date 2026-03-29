@@ -26,3 +26,7 @@ dist-ssr
 # Rahasia Negara (Environment Variables)
 .env
 .env.local
+
+# Hasil build tidak boleh di-upload
+dist/
+docs/
