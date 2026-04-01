@@ -116,9 +116,22 @@ export const useDashboardLogic = () => {
     const fetchAnnouncements = async () => {
       setLoadingAnnounce(true);
       try {
-        const { data } = await supabase.from('Pengumuman').select('*').order('created_at', { ascending: false });
+        // 1. Buat query dasar
+        let query = supabase.from('Pengumuman').select('*');
+
+        // 2. CEK ROLE: Jika BUKAN Admin/Super Admin, paksa hanya ambil yang Approved
+        if (parsed.role !== 'Admin' && parsed.role !== 'Super Admin') {
+          query = query.eq('status', 'Approved');
+        }
+
+        // 3. Eksekusi query dengan urutan terbaru
+        const { data, error } = await query.order('created_at', { ascending: false });
+        
+        if (error) throw error;
         setAnnouncements(data || []);
-      } catch (err) { } finally {
+      } catch (err) {
+        console.error("Gagal mengambil pengumuman:", err);
+      } finally {
         setLoadingAnnounce(false);
       }
     };

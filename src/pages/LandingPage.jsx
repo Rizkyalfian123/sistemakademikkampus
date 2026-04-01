@@ -29,6 +29,7 @@ export default function LandingPage() {
         const { data, error } = await supabase
           .from('Pengumuman')
           .select('*')
+          .eq('status', 'Approved')
           .order('created_at', { ascending: false })
 
         if (error) throw error

@@ -1,14 +1,14 @@
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { supabase } from '../supabaseClient'
-import { FiLock, FiUser, FiLoader, FiMail, FiArrowRight } from 'react-icons/fi'
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
+import { FiLock, FiUser, FiLoader, FiMail, FiArrowRight } from 'react-icons/fi';
 
 export default function Login() {
-  const navigate = useNavigate()
-  const [identifier, setIdentifier] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [errorMsg, setErrorMsg] = useState('')
+  const navigate = useNavigate();
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -16,16 +16,16 @@ export default function Login() {
     setErrorMsg('');
 
     try {
-      // 1. CARI EMAIL BERDASARKAN USERNAME
-      // Kita cari di tabel 'user' manual Anda untuk mendapatkan email resminya
+      // 1. CARI EMAIL & ROLE BERDASARKAN USERNAME
+      // Kita cari di tabel 'user' manual untuk mendapatkan email resmi dan role
       const { data: profileData, error: profileError } = await supabase
         .from('user')
         .select('Email, Role, Username, id')
-        .eq('Username', identifier) // identifier di sini adalah input username dari user
+        .eq('Username', identifier) // identifier adalah input dari user
         .maybeSingle();
 
       if (profileError || !profileData) {
-        throw new Error('Username tidak ditemukan.');
+        throw new Error('Username tidak ditemukan di sistem.');
       }
 
       const userEmail = profileData.Email;
@@ -36,7 +36,9 @@ export default function Login() {
         password: password,
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        throw new Error('Password salah atau akun tidak valid.');
+      }
 
       // 3. SIMPAN SESI KE LOCALSTORAGE (Data gabungan)
       const sessionData = {
@@ -48,11 +50,24 @@ export default function Login() {
 
       localStorage.setItem('user_akademik', JSON.stringify(sessionData));
       
-      // 4. REDIRECT BERDASARKAN ROLE
-      if (profileData.Role === 'Admin' || profileData.Role === 'Administrator') {
-        navigate('/admin', { replace: true });
+      // ==========================================
+      // 4. REDIRECT BERDASARKAN ROLE (KEBAL TYPO)
+      // ==========================================
+      
+      // Ambil role, ubah jadi huruf kecil semua, dan hilangkan spasi depan/belakang
+      const rawRole = profileData.Role ? profileData.Role.toLowerCase().trim() : '';
+
+      if (rawRole === 'super_admin' || rawRole === 'super admin' || rawRole === 'superadmin') {
+        // Jika Super Admin
+        navigate('/super-admin'); 
+        
+      } else if (rawRole === 'admin' || rawRole === 'administrator') {
+        // Jika Admin Fakultas/Prodi/dll
+        navigate('/admin'); 
+        
       } else {
-        navigate('/dashboard', { replace: true });
+        // Jika Mahasiswa atau tidak dikenali
+        navigate('/dashboard'); 
       }
 
     } catch (error) {
@@ -63,7 +78,7 @@ export default function Login() {
   };
 
   return (
-    // CONTAINER UTAMA: Gradient Background Gelap (Tailwind v2 Friendly)
+    // CONTAINER UTAMA: Gradient Background Gelap
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 relative overflow-hidden font-sans">
       
       {/* DEKORASI BACKGROUND (Lingkaran Hiasan) */}
@@ -72,7 +87,7 @@ export default function Login() {
 
       {/* KARTU LOGIN */}
       <div className="w-full max-w-md z-10 p-4">
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden transform transition-all hover:scale-105 duration-500">
+        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden transform transition-all hover:scale-[1.02] duration-500">
           
           {/* Header Kartu: Gradient & Icon */}
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-8 text-center relative overflow-hidden">
@@ -92,7 +107,7 @@ export default function Login() {
             
             {/* Pesan Error */}
             {errorMsg && (
-              <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded-r shadow-sm flex items-center">
+              <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded-r shadow-sm flex items-center animate-fade-in">
                 <span className="font-bold mr-2">Oops!</span> {errorMsg}
               </div>
             )}
@@ -113,7 +128,7 @@ export default function Login() {
                     type="text"
                     required
                     className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all duration-200 text-gray-800 placeholder-gray-400 font-medium"
-                    placeholder="Masukan ID Anda..."
+                    placeholder="Masukan Username Anda..."
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
                   />
@@ -142,7 +157,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 px-6 rounded-xl text-white font-bold text-lg shadow-lg transform transition-all duration-200 hover:-translate-y-1 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:opacity-70 disabled:cursor-not-allowed"
+                className="w-full py-4 px-6 rounded-xl text-white font-bold text-lg shadow-lg transform transition-all duration-200 hover:-translate-y-1 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
                 style={{
                   background: 'linear-gradient(90deg, #2563eb 0%, #7c3aed 100%)', // Blue to Purple
                 }}
@@ -163,7 +178,7 @@ export default function Login() {
 
             <div className="mt-8 text-center">
               <p className="text-sm text-gray-400">
-                Lupa kata sandi? <button className="text-blue-600 font-bold hover:underline focus:outline-none">Bantuan</button>
+                Lupa kata sandi? <button className="text-blue-600 font-bold hover:underline focus:outline-none">Hubungi Admin</button>
               </p>
             </div>
 
@@ -171,10 +186,10 @@ export default function Login() {
         </div>
         
         {/* Footer Kecil */}
-        <p className="text-center text-gray-500 text-xs mt-6 opacity-60">
-          © 2024 Politeknik Negeri. All Rights Reserved.
+        <p className="text-center text-gray-500 text-xs mt-6 opacity-60 font-medium tracking-wide">
+          © 2026 Politeknik Negeri. All Rights Reserved.
         </p>
       </div>
     </div>
-  )
+  );
 }

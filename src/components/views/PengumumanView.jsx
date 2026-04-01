@@ -74,6 +74,36 @@ export const PengumumanView = ({ user }) => {
     return matchSearch && matchKategori;
   });
 
+  // Helper untuk Render Badge Status dengan Font & Border Standar
+    const renderStatusBadge = (status) => {
+    // Base class: Ukuran font kecil [9px], border abu-abu standar, dan padding rapat
+    const baseClass = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-gray-200 text-[9px] font-bold uppercase tracking-wider";
+    
+    switch (status) {
+      case 'Approved':
+        return (
+          <span className={`${baseClass} bg-green-50 text-green-600`}>
+            <span className="w-1 h-1 rounded-full bg-green-500 animate-pulse"></span>
+            Approved
+          </span>
+        );
+      case 'Rejected':
+        return (
+          <span className={`${baseClass} bg-red-50 text-red-600`}>
+            <span className="w-1 h-1 rounded-full bg-red-500"></span>
+            Rejected
+          </span>
+        );
+      default: // Pending
+        return (
+          <span className={`${baseClass} bg-yellow-50 text-yellow-600`}>
+            <span className="w-1 h-1 rounded-full bg-yellow-500"></span>
+            Pending
+          </span>
+        );
+    }
+  };
+
   return (
     <div className="flex flex-col space-y-6 animate-pop-in">
       
@@ -128,42 +158,44 @@ export const PengumumanView = ({ user }) => {
                 <th className="px-6 py-4 w-32">Tanggal</th>
                 <th className="px-6 py-4 w-40">Penulis</th>
                 <th className="px-6 py-4">Judul</th>
+                <th className="px-6 py-4 w-32 text-center">Status</th>
                 <th className="px-6 py-4 text-center w-28">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loadingData ? (
-                <tr><td colSpan="4" className="text-center py-12 text-gray-400 text-xs">Memproses data...</td></tr>
+                <tr><td colSpan="5" className="text-center py-12 text-gray-400 text-xs italic">Memproses data...</td></tr>
               ) : filteredData.length === 0 ? (
-                <tr><td colSpan="4" className="text-center py-12 text-gray-400 text-xs">Tidak ada pengumuman ditemukan.</td></tr>
+                <tr><td colSpan="5" className="text-center py-12 text-gray-400 text-xs italic">Tidak ada pengumuman ditemukan.</td></tr>
               ) : (
                 filteredData.map((row) => (
                   <tr key={row.id} className="hover:bg-gray-50/50 transition-colors group">
                     <td className="px-6 py-5 align-middle">
                       <div className="text-[13px] font-bold text-gray-800">{formatDateTable(row.created_at)}</div>
-                      <div className="text-[10px] text-gray-400 font-medium mt-0.5">{formatTimeTable(row.created_at)} WIB</div>
+                      <div className="text-[10px] text-gray-400 font-medium mt-0.5 uppercase">{formatTimeTable(row.created_at)} WIB</div>
                     </td>
                     <td className="px-6 py-5 align-middle text-[12px] text-gray-600 font-medium">
-                      {user?.name || 'Admin'}
+                      {row.author || user?.name || 'Admin'}
                     </td>
                     <td className="px-6 py-5 align-middle">
                       <div 
-                        className="text-[14px] font-bold text-gray-800 mb-1.5 group-hover:text-blue-600 transition-colors cursor-pointer flex items-center gap-2" 
+                        className="text-[14px] font-bold text-gray-800 mb-1 group-hover:text-blue-600 transition-colors cursor-pointer flex items-center gap-2" 
                         onClick={() => setViewingData(row)}
                       >
                          {row.Judul}
-                         {row.image_url && <FiImage className="text-blue-400" title="Memiliki lampiran" />}
+                         {row.image_url && <FiImage className="text-blue-400 shrink-0" size={14} title="Memiliki lampiran" />}
                       </div>
                       <p 
-                        className="text-[12px] text-gray-500 leading-relaxed mb-3 max-w-3xl"
-                        style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                        className="text-[12px] text-gray-500 leading-relaxed truncate max-w-xs md:max-w-md"
                       >
                         {row.isi_pengumuman}
                       </p>
-                      <div className="flex gap-2">
-                        <span className="px-2 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded uppercase">{row.kategori || 'Umum'}</span>
-                        <span className="px-2 py-1 bg-green-50 text-green-700 text-[10px] font-bold rounded uppercase">Aktif</span>
+                      <div className="mt-1.5">
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-bold rounded border border-gray-200 uppercase tracking-tighter">{row.kategori || 'Umum'}</span>
                       </div>
+                    </td>
+                    <td className="px-6 py-5 align-middle text-center">
+                      {renderStatusBadge(row.status)}
                     </td>
                     <td className="px-6 py-5 align-middle">
                       <div className="flex items-center justify-center gap-2">
@@ -202,20 +234,27 @@ export const PengumumanView = ({ user }) => {
         </div>
       </div>
 
-      {/* ========================================================= */}
-      {/* MODAL DETAIL PENGUMUMAN (DENGAN LOGIKA PEMBEDA QR/SCAN) */}
-      {/* ========================================================= */}
+      {/* MODAL DETAIL PENGUMUMAN */}
       {viewingData && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black bg-opacity-80 backdrop-blur-sm animate-fade-in">
           <div 
             className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden animate-pop-in" 
-            style={{ maxHeight: '85vh' }}
+            style={{ maxHeight: '75vh' }}
           >
             {/* Header Biru */}
             <div className="p-6 md:p-8 bg-blue-700 text-white shrink-0 relative">
-              <div className="flex items-center mb-4">
+              <div className="flex items-center gap-3 mb-4">
                 <span className="border border-white/80 text-white text-[12px] font-bold px-4 py-1.5 rounded-full uppercase tracking-wider">
                   {viewingData.kategori || 'UMUM'}
+                </span>
+                
+                {/* STATUS BADGE MODAL */}
+                <span className={`px-4 py-1.5 rounded-full text-[12px] font-bold uppercase tracking-wider border border-gray-200/30 ${
+                  viewingData.status === 'Approved' ? 'bg-emerald-500 text-white' :
+                  viewingData.status === 'Rejected' ? 'bg-red-500 text-white' :
+                  'bg-amber-500 text-white'
+                }`}>
+                  {viewingData.status || 'PENDING'}
                 </span>
               </div>
               <h2 className="text-xl md:text-2xl font-bold leading-snug uppercase pr-12">
@@ -232,11 +271,8 @@ export const PengumumanView = ({ user }) => {
 
             {/* Content Area */}
             <div className="p-6 md:p-8 overflow-y-auto flex-grow bg-white custom-scrollbar">
-              
-              {/* TAMPILAN GAMBAR / QR CODE VERIFIKASI */}
               {viewingData.image_url && (
                 viewingData.image_url.toLowerCase().includes('qr') ? (
-                  // 1. GAYA KHUSUS QR CODE (Rapi di Tengah)
                   <div className="mb-8 flex flex-col items-center justify-center p-8 bg-blue-50/30 rounded-3xl border-2 border-dashed border-blue-100">
                     <div className="bg-white p-4 rounded-2xl shadow-xl border border-blue-50">
                       <img src={viewingData.image_url} alt="QR Verification" className="w-40 h-40 object-contain" />
@@ -247,7 +283,6 @@ export const PengumumanView = ({ user }) => {
                     </div>
                   </div>
                 ) : (
-                  // 2. GAYA LAMPIRAN DOKUMEN OCR (Lebar Kertas)
                   <div className="mb-6 rounded-xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50 group relative">
                     <img 
                       src={viewingData.image_url} 
@@ -264,7 +299,6 @@ export const PengumumanView = ({ user }) => {
                 )
               )}
 
-              {/* TEKS PENGUMUMAN */}
               <div className="text-gray-700 text-[15px] leading-[1.8] whitespace-pre-wrap break-words">
                 {viewingData.isi_pengumuman}
               </div>

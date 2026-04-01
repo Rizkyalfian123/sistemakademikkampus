@@ -60,7 +60,7 @@ export default function ChatbotTrainingCenterView() {
   const handleSaveFormat = () => {
     localStorage.setItem('chatbot_format', JSON.stringify(botFormat));
     setHistory([{ id: Date.now(), date: new Date().toLocaleString('id-ID'), status: 'Format Update', itemsAdded: 0, admin: 'Admin User' }, ...history]);
-    alert("Mantap! Gaya bahasa gaul berhasil disimpan ke sistem.");
+    alert("Gaya bahasa chatbot berhasil disimpan ke sistem.");
   };
 
   const handleTrainModel = () => {
@@ -246,7 +246,7 @@ export default function ChatbotTrainingCenterView() {
               className="w-full flex-1 min-h-[150px] p-6 bg-gray-50 border border-gray-200 rounded-2xl text-[14px] focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none custom-scrollbar" 
             />
             <div className="flex gap-3">
-              <button onClick={handleTrainModel} disabled={isTraining} className="flex-1 bg-green-600 text-white font-bold px-6 py-3.5 rounded-xl shadow-md hover:bg-green-700 transition-all flex justify-center items-center gap-2">
+              <button onClick={handleTrainModel} disabled={isTraining} className="flex-1 bg-blue-600 text-white font-bold px-6 py-3.5 rounded-xl shadow-md hover:bg-blue-700 transition-all flex justify-center items-center gap-2">
                 <FiRefreshCcw className={isTraining ? 'animate-spin' : ''}/> Simpan Aturan Baru
               </button>
               <button onClick={() => setTrainingData('')} className="px-6 py-3.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200">Reset Text</button>
