@@ -135,6 +135,8 @@ const EmailModal = ({ isOpen, onClose, onSubmit, currentEmail, isLoading }) => {
 export default function Dashboard() {
   const logic = useDashboardLogic();
 
+  console.log("DATA PENGUMUMAN DARI LOGIC:", logic.announcements);
+
   const [selectedAnnounce, setSelectedAnnounce] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [currentStageId, setCurrentStageId] = useState(null);

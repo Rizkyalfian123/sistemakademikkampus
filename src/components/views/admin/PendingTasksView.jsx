@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom'; // PENTING: Untuk narik modal ke tengah layar
+import { createPortal } from 'react-dom';
 import { 
   FiSearch, FiEye, FiSettings, 
   FiCheck, FiX, FiClock, FiImage, FiXCircle 
@@ -202,7 +202,7 @@ export const PendingTasksView = ({ user }) => {
       {viewingData && createPortal(
               <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black bg-opacity-80 backdrop-blur-sm animate-fade-in">
                 <div 
-                  className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden animate-pop-in" 
+                  className="bg-white rounded-2xl shadow-2xl w-full max-w-xl flex flex-col overflow-hidden animate-pop-in" 
                   style={{ maxHeight: '75vh' }}
                 >
                   {/* Header Biru */}
